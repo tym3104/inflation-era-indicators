@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>世界インフレ時代の経済指標ダッシュボード</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <h1 id="title">世界インフレ時代の経済指標</h1>
+      <p id="subtitle" class="subtitle"></p>
+      <p class="meta-line">
+        <span id="generated-at"></span>
+        <span id="mode-badge" class="badge"></span>
+        <button id="guide-open" class="guide-link" type="button">📖 指標の解説</button>
+      </p>
+      <nav id="month-nav" class="month-nav" aria-label="月の切り替え"></nav>
+
+      <section id="signal" class="signal" aria-label="景気の総合シグナル"></section>
+
+      <section class="period" aria-label="総合スコアの期間推移">
+        <div class="period-head">
+          <div class="period-tabs" role="tablist">
+            <button class="period-tab" data-mode="year" role="tab">年間</button>
+            <button class="period-tab" data-mode="all" role="tab">全期間</button>
+            <button class="period-tab" data-mode="custom" role="tab">指定期間</button>
+          </div>
+          <div id="custom-range" class="custom-range">
+            <label>開始 <select id="range-from"></select></label>
+            <label>終了 <select id="range-to"></select></label>
+          </div>
+        </div>
+        <div class="period-toggles">
+          <span class="toggle-group">
+            <span class="toggle-group-label">S&P500を重ねる:</span>
+            <label class="toggle"><input type="radio" name="sp500-mode" value="off" /> 表示しない</label>
+            <label class="toggle"><input type="radio" name="sp500-mode" value="pct" /> 月次騰落率</label>
+            <label class="toggle"><input type="radio" name="sp500-mode" value="level" /> 価格</label>
+          </span>
+          <label class="toggle"><input type="checkbox" id="toggle-events" /> 特殊要因・イベントを表示</label>
+        </div>
+        <p id="period-caption" class="period-caption"></p>
+        <div class="period-chart-wrap"><canvas id="period-chart"></canvas></div>
+      </section>
+
+      <section id="analysis" class="analysis" aria-label="12指標の関係性に関する分析"></section>
+    </div>
+  </header>
+
+  <main>
+    <p id="status-message" class="status-message"></p>
+    <section id="cards" class="card-grid" aria-label="経済指標カード一覧"></section>
+    <footer class="site-footer">
+      <p id="source-note"></p>
+      <p class="disclaimer">
+        本ダッシュボードはエミン・ユルマズ『世界インフレ時代の経済指標』第2章の枠組みを学習・可視化する目的のもので、
+        投資勧誘ではありません。投資判断は自己責任で行ってください。
+      </p>
+    </footer>
+  </main>
+
+  <!-- 詳細チャート用モーダル -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <button id="modal-close" class="modal-close" aria-label="閉じる">&times;</button>
+      <h2 id="modal-title"></h2>
+      <p id="modal-sub" class="modal-sub"></p>
+      <div class="chart-wrap"><canvas id="detail-chart"></canvas></div>
+      <div class="modal-read">
+        <h3>この指標とは</h3>
+        <p id="modal-desc"></p>
+        <h3>読み方・投資への使い方</h3>
+        <p id="modal-howto"></p>
+        <p id="modal-fallback" class="fallback-note"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 指標の解説モーダル（12指標一覧） -->
+  <div id="guide-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content guide-content">
+      <button id="guide-close" class="modal-close" aria-label="閉じる">&times;</button>
+      <h2>指標の解説 — 12の経済指標の見方</h2>
+      <p class="modal-sub">各指標が「何を表すか」と「どの観点で見るか」をまとめています。本文中の指標カードをクリックすると、その指標の詳細チャートも見られます。</p>
+      <div id="guide-list" class="guide-list"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

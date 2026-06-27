@@ -1,0 +1,6 @@
+# データ取得は標準ライブラリ（urllib, json, ssl）で動作します。
+# certifi は macOS の SSL 証明書検証エラー（CERTIFICATE_VERIFY_FAILED）対策のため推奨。
+certifi
+
+# AIレポート生成（generate_analysis.py）に必要。ANTHROPIC_API_KEY 未設定なら使われません。
+anthropic

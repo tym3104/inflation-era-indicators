@@ -1,0 +1,17 @@
+# 秘密情報（絶対にコミットしない）
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+
+# 注: data/ 配下のJSON（指標データ・AIレポート）は GitHub Pages で
+#     配信するため、あえて Git 管理に含めています（除外しません）。
+
+# Claude Code 内部設定
+.claude/

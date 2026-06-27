@@ -1,0 +1,175 @@
+{
+  "snapshot_month": "2026-06",
+  "generated_at": "2026-06-26T09:50:55",
+  "mode": "fred",
+  "indicators": [
+    {
+      "key": "payems",
+      "no": 1,
+      "name_ja": "雇用統計（非農業部門雇用者数）",
+      "status": "ok",
+      "summary": {
+        "latest_value": 172.0,
+        "latest_date": "2026-05-01",
+        "prev_value": 179.0,
+        "change": -7.0,
+        "direction": "down"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "icsa",
+      "no": 2,
+      "name_ja": "新規失業保険申請件数",
+      "status": "ok",
+      "summary": {
+        "latest_value": 215000.0,
+        "latest_date": "2026-06-20",
+        "prev_value": 227000.0,
+        "change": -12000.0,
+        "direction": "down"
+      },
+      "good_direction": "down"
+    },
+    {
+      "key": "rsafs",
+      "no": 3,
+      "name_ja": "小売売上高",
+      "status": "ok",
+      "summary": {
+        "latest_value": 0.881,
+        "latest_date": "2026-05-01",
+        "prev_value": 0.401,
+        "change": 0.48,
+        "direction": "up"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "gdpc1",
+      "no": 4,
+      "name_ja": "実質GDP",
+      "status": "ok",
+      "summary": {
+        "latest_value": 2.089,
+        "latest_date": "2026-01-01",
+        "prev_value": 0.482,
+        "change": 1.607,
+        "direction": "up"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "pce",
+      "no": 5,
+      "name_ja": "個人所得・個人支出",
+      "status": "ok",
+      "summary": {
+        "latest_value": 0.713,
+        "latest_date": "2026-05-01",
+        "prev_value": 0.408,
+        "change": 0.305,
+        "direction": "up"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "consumer_confidence",
+      "no": 6,
+      "name_ja": "消費者信頼感指数",
+      "status": "ok",
+      "summary": {
+        "latest_value": 48.202,
+        "latest_date": "2026-05-01",
+        "prev_value": 53.582,
+        "change": -5.38,
+        "direction": "down"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "umcsent",
+      "no": 7,
+      "name_ja": "ミシガン大学消費者態度指数",
+      "status": "ok",
+      "summary": {
+        "latest_value": 49.8,
+        "latest_date": "2026-04-01",
+        "prev_value": 53.3,
+        "change": -3.5,
+        "direction": "down"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "dgorder",
+      "no": 8,
+      "name_ja": "耐久財受注",
+      "status": "ok",
+      "summary": {
+        "latest_value": -4.478,
+        "latest_date": "2026-05-01",
+        "prev_value": 8.466,
+        "change": -12.945,
+        "direction": "down"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "indpro",
+      "no": 9,
+      "name_ja": "鉱工業生産指数",
+      "status": "ok",
+      "summary": {
+        "latest_value": 0.135,
+        "latest_date": "2026-05-01",
+        "prev_value": 0.868,
+        "change": -0.732,
+        "direction": "down"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "ism_pmi",
+      "no": 10,
+      "name_ja": "製造業新規受注（景況感の代替）",
+      "status": "ok",
+      "summary": {
+        "latest_value": 4.754,
+        "latest_date": "2026-04-01",
+        "prev_value": 1.826,
+        "change": 2.928,
+        "direction": "up"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "permit",
+      "no": 11,
+      "name_ja": "新規住宅建設許可件数",
+      "status": "ok",
+      "summary": {
+        "latest_value": -0.914,
+        "latest_date": "2026-05-01",
+        "prev_value": 4.402,
+        "change": -5.316,
+        "direction": "down"
+      },
+      "good_direction": "up"
+    },
+    {
+      "key": "cpi",
+      "no": 12,
+      "name_ja": "消費者物価指数（CPI）",
+      "status": "ok",
+      "summary": {
+        "latest_value": 4.167,
+        "latest_date": "2026-05-01",
+        "prev_value": 3.779,
+        "change": 0.387,
+        "direction": "up"
+      },
+      "good_direction": "down"
+    }
+  ]
+}
