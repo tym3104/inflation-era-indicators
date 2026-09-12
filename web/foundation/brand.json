@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "name": "withAwaI",
+  "wordmark": "AwaI",
+  "tagline": "大切なことに、向き合える毎日へ。",
+  "operator": "AwaI株式会社",
+  "operatorLabel": "開発・提供：AwaI株式会社",
+  "signatureLabel": "withAwaI シリーズ",
+  "relatedLabel": "関連コンテンツ／運営：AwaI株式会社",
+  "copyright": "© 2026 AwaI Inc.",
+  "companyUrl": "https://company.withawai.com/",
+  "flagship": { "name": "Tsumugi", "url": "https://withawai.com/" },
+  "legal": { "privacy": "プライバシーポリシー", "terms": "利用規約" },
+  "titleSeparator": "｜",
+  "googleLabel": "Googleでログイン",
+  "colors": { "paper": "#f7f4ec", "forest": "#193c30", "gold": "#b48745", "ink": "#203a30" }
+}
