@@ -1,15 +1,28 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-ui-foundation="withawai-2.0.0" data-ui-scheme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>世界インフレ時代の経済指標ダッシュボード</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <title>世界インフレ時代の経済指標ダッシュボード｜withAwaI</title>
+  <meta name="description" content="米国の12の経済指標をFREDのデータで読む。景気・物価・消費の流れを、月ごとの変化と詳細チャートで確認できるwithAwaIのダッシュボード。" />
+  <link rel="canonical" href="https://economy.withawai.com/" />
+  <meta property="og:title" content="世界インフレ時代の経済指標ダッシュボード｜withAwaI" />
+  <meta property="og:description" content="米国の12指標から、景気・物価・消費の流れを読む。" />
+  <meta property="og:url" content="https://economy.withawai.com/" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#14231e" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/foundation/foundation.css" />
+  <link rel="stylesheet" href="/foundation/night.css" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/vendor/chart.umd.js"></script>
 </head>
-<body>
+<body class="ui-theme-night">
+  <a class="skip-link" href="#cards">指標一覧へ</a>
+  <nav class="brand-nav" aria-label="シリーズ"><a href="https://company.withawai.com/">with<span>AwaI</span></a><a href="https://company.withawai.com/products/">シリーズ一覧 ↗</a></nav>
   <header class="site-header">
     <div class="header-inner">
+      <p class="ui-role-line"><strong>withAwaI</strong> / 指標の意味を確かめ、自分の判断につなげる。</p>
       <h1 id="title">世界インフレ時代の経済指標</h1>
       <p id="subtitle" class="subtitle"></p>
       <p class="meta-line">
@@ -34,24 +47,19 @@
           </div>
         </div>
         <div class="period-toggles">
-          <span class="toggle-group">
-            <span class="toggle-group-label">S&P500を重ねる:</span>
-            <label class="toggle"><input type="radio" name="sp500-mode" value="off" /> 表示しない</label>
-            <label class="toggle"><input type="radio" name="sp500-mode" value="pct" /> 月次騰落率</label>
-            <label class="toggle"><input type="radio" name="sp500-mode" value="level" /> 価格</label>
-          </span>
-          <label class="toggle"><input type="checkbox" id="toggle-events" /> 特殊要因・イベントを表示</label>
+          <a href="https://fred.stlouisfed.org/series/SP500" target="_blank" rel="noopener noreferrer">S&amp;P 500は出典サイトで確認 ↗</a>
         </div>
         <p id="period-caption" class="period-caption"></p>
         <div class="period-chart-wrap"><canvas id="period-chart"></canvas></div>
       </section>
 
-      <section id="analysis" class="analysis" aria-label="12指標の関係性に関する分析"></section>
+      <details class="analysis-disclosure"><summary>指標の関係性を読む（ルールベースの整理）</summary><section id="analysis" class="analysis" aria-label="12指標の関係性に関する分析"></section></details>
     </div>
   </header>
 
   <main>
     <p id="status-message" class="status-message"></p>
+    <div class="indicators-heading"><h2>12の経済指標</h2><p>カードを選ぶと、推移・意味・出典を確認できます。</p></div>
     <section id="cards" class="card-grid" aria-label="経済指標カード一覧"></section>
     <footer class="site-footer">
       <p id="source-note"></p>
@@ -59,11 +67,21 @@
         本ダッシュボードはエミン・ユルマズ『世界インフレ時代の経済指標』第2章の枠組みを学習・可視化する目的のもので、
         投資勧誘ではありません。投資判断は自己責任で行ってください。
       </p>
+<p>OECD (2026), Main Economic Indicators, <a href="https://data-explorer.oecd.org/">OECD Data Explorer</a>（FRED経由、取得日は上部に表示）。Surveys of Consumers, University of Michigan, University of Michigan: Consumer Sentiment © [UMCSENT], retrieved from <a href="https://fred.stlouisfed.org/series/UMCSENT">FRED</a>（取得日は上部に表示、1か月遅れで提供）。</p>
+<p>本サービスは書籍の公認・公式サービスではありません。</p>
     </footer>
+<footer class="ui-signature" aria-label="withAwaI シリーズ">
+  <div class="ui-signature__identity"><span class="ui-wordmark" aria-label="AwaI">A<em>wa</em>I</span><span>withAwaI シリーズ</span></div>
+  <p class="ui-signature__tagline">大切なことに、向き合える毎日へ。</p>
+  <a href="https://company.withawai.com/">開発・提供：AwaI株式会社 <span aria-hidden="true">↗</span></a>
+  <nav class="ui-legal-links" aria-label="法務"><a href="/privacy/">プライバシーポリシー</a><a href="/terms/">利用規約</a></nav>
+  <p><small>© 2026 AwaI Inc.</small></p>
+</footer>
+
   </main>
 
   <!-- 詳細チャート用モーダル -->
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-content">
       <button id="modal-close" class="modal-close" aria-label="閉じる">&times;</button>
       <h2 id="modal-title"></h2>
@@ -74,21 +92,22 @@
         <p id="modal-desc"></p>
         <h3>読み方・投資への使い方</h3>
         <p id="modal-howto"></p>
+        <p><a id="modal-source" target="_blank" rel="noopener noreferrer">FREDで出典と最新公表値を確認 ↗</a></p>
         <p id="modal-fallback" class="fallback-note"></p>
       </div>
     </div>
   </div>
 
   <!-- 指標の解説モーダル（12指標一覧） -->
-  <div id="guide-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div id="guide-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
     <div class="modal-content guide-content">
       <button id="guide-close" class="modal-close" aria-label="閉じる">&times;</button>
-      <h2>指標の解説 — 12の経済指標の見方</h2>
+      <h2 id="guide-title">指標の解説 — 12の経済指標の見方</h2>
       <p class="modal-sub">各指標が「何を表すか」と「どの観点で見るか」をまとめています。本文中の指標カードをクリックすると、その指標の詳細チャートも見られます。</p>
       <div id="guide-list" class="guide-list"></div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

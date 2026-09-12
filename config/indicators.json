@@ -1,8 +1,8 @@
 {
   "meta": {
     "title": "世界インフレ時代の経済指標ダッシュボード",
-    "subtitle": "エミン・ユルマズ『今読むべき指標は12個です』第2章 米国の12の経済指標",
-    "source_note": "データ出典: FRED (Federal Reserve Bank of St. Louis)。指標の枠組みは書籍第2章に基づく。"
+    "subtitle": "米国の12指標から、景気・物価・消費の流れを読む。",
+    "source_note": "データ出典：FRED（セントルイス連邦準備銀行）と各統計作成機関。観測日と取得日は異なります。過去の表示も最新の改定値に基づき、当時入手可能だった情報の再現ではありません。"
   },
   "indicators": [
     {
@@ -21,7 +21,8 @@
       "good_direction": "up",
       "category": "雇用",
       "description": "米労働省が毎月第1金曜に発表する最重要の景気指標。前月から雇用が何万人増えたかで景気の勢いを測る。市場が最も注目し、FRBの金融政策判断にも直結する。",
-      "how_to_read": "増加幅が大きいほど景気は強い。ただし強すぎる雇用は利上げ継続=株の重し、という「Good news is bad news」の逆説に注意。併記の失業率と合わせて労働市場の過熱/減速を読む。"
+      "how_to_read": "増加幅が大きいほど景気は強い。ただし強すぎる雇用は利上げ継続=株の重し、という「Good news is bad news」の逆説に注意。失業率（FRED: UNRATE）と合わせて労働市場の過熱/減速を読む。",
+      "change_label": "前回表示値との差"
     },
     {
       "key": "icsa",
@@ -37,7 +38,8 @@
       "good_direction": "down",
       "category": "雇用",
       "description": "週次で出る最も速報性の高い雇用指標。新たに失業保険を申請した人数で、労働市場の変調をいち早く捉える。",
-      "how_to_read": "件数が増えていく局面は景気減速のサイン。20〜30万件あたりが平常時の目安で、急増はリセッション接近の警戒シグナル。週次のブレが大きいので4週移動平均で趨勢を見るのが定石。"
+      "how_to_read": "件数が増えていく局面は景気減速のサイン。20〜30万件あたりが平常時の目安で、急増はリセッション接近の警戒シグナル。週次のブレが大きいので4週移動平均で趨勢を見るのが定石。",
+      "change_label": "前回表示値との差"
     },
     {
       "key": "rsafs",
@@ -46,14 +48,15 @@
       "name_en": "Retail Sales",
       "source": "fred",
       "fred_id": "RSAFS",
-      "unit": "百万ドル",
+      "unit": "前月比 %",
       "frequency": "月次",
       "transform": "mom_pct",
       "transform_label": "前月比",
       "good_direction": "up",
       "category": "消費",
       "description": "米国GDPの約7割を占める個人消費の勢いを示す。米国経済は消費が主役であり、内需の強さを映す。",
-      "how_to_read": "前月比プラスが続けば消費は堅調。インフレ局面では「数量が伸びているのか、値上がりで金額が膨らんだだけか」を物価指数と合わせて吟味する。"
+      "how_to_read": "前月比プラスが続けば消費は堅調。インフレ局面では「数量が伸びているのか、値上がりで金額が膨らんだだけか」を物価指数と合わせて吟味する。",
+      "change_label": "前回からの差・ポイント"
     },
     {
       "key": "gdpc1",
@@ -62,32 +65,34 @@
       "name_en": "Real GDP",
       "source": "fred",
       "fred_id": "GDPC1",
-      "unit": "十億ドル(2017年連鎖)",
+      "unit": "前期比年率 %",
       "frequency": "四半期",
       "transform": "qoq_annualized",
       "transform_label": "前期比年率",
       "good_direction": "up",
       "category": "成長",
       "description": "一国の経済活動の総量。四半期ごとに前期比年率で発表され、景気の最終的な成績表。",
-      "how_to_read": "2四半期連続マイナスは「テクニカルリセッション」の目安。発表は速報→改定と複数回あり、振れに注意。大局観を持つにはこの成長トレンドが土台になる。"
+      "how_to_read": "2四半期連続マイナスは「テクニカルリセッション」の目安。発表は速報→改定と複数回あり、振れに注意。大局観を持つにはこの成長トレンドが土台になる。",
+      "change_label": "前回からの差・ポイント"
     },
     {
       "key": "pce",
       "no": 5,
-      "name_ja": "個人所得・個人支出",
-      "name_en": "Personal Income & Outlays",
+      "name_ja": "個人消費支出（PCE）",
+      "name_en": "Personal Consumption Expenditures",
       "source": "fred",
       "fred_id": "PCE",
       "companion_fred_id": "PI",
       "companion_name_ja": "個人所得",
-      "unit": "十億ドル",
+      "unit": "前月比 %",
       "frequency": "月次",
       "transform": "mom_pct",
       "transform_label": "前月比",
       "good_direction": "up",
       "category": "消費",
-      "description": "家計がどれだけ稼ぎ（所得）、使ったか（支出=PCE）。FRBが最重視するPCE物価指数の母体でもある。",
-      "how_to_read": "所得の伸びを支出が上回り続けると貯蓄を取り崩している=持続性に注意。所得・支出ともに伸びる健全な拡大が理想。"
+      "description": "家計による名目の個人消費支出の前月比。PCE物価指数とは別の系列です。",
+      "how_to_read": "消費支出の増減を確認します。名目金額のため、数量の伸びと物価上昇を区別するには物価指数などを合わせて確認する必要があります。",
+      "change_label": "前回からの差・ポイント"
     },
     {
       "key": "consumer_confidence",
@@ -96,15 +101,16 @@
       "name_en": "Consumer Confidence (OECD CCI proxy)",
       "source": "fred",
       "fred_id": "USACSCICP02STSAM",
-      "unit": "指数(長期平均=100)",
+      "unit": "回答差・季節調整済み",
       "frequency": "月次",
       "transform": "level",
       "transform_label": "前回比",
       "good_direction": "up",
       "category": "センチメント",
-      "description": "消費者が景気の先行きをどう感じているかを示すマインド指標。本家はConference Board版だが、FREDではOECD編纂の米国消費者信頼感指数で代替する。100が長期平均で、上回れば楽観・下回れば悲観。",
+      "description": "OECDが集計する米国の消費者信頼感。使用系列の単位はPercentage balance（回答差）です。長期平均100の指数ではなく、Conference Board版とも異なります。",
       "how_to_read": "消費マインドの改善/悪化は実際の消費行動に先行しやすい。水準そのものより、上向きか下向きかの方向変化が景気の転換点を示唆する。",
-      "fallback_note": "Conference Board公式版はFRED非収録のためOECD系列(USACSCICP02STSAM)で代替。厳密な水準比較は公式値を参照。"
+      "fallback_note": "OECD Main Economic Indicators / USACSCICP02STSAM。Conference Board版とは直接比較できません。",
+      "change_label": "前回表示値との差"
     },
     {
       "key": "umcsent",
@@ -120,7 +126,8 @@
       "good_direction": "up",
       "category": "センチメント",
       "description": "ミシガン大学が調査する消費者マインド指数。期待インフレ率の調査も含み、市場が注目する。",
-      "how_to_read": "Conference Board版が雇用環境に敏感なのに対し、ミシガン版は物価・家計負担に敏感。インフレ局面では特にこの指数の落ち込みがインフレ疲れを映す。"
+      "how_to_read": "Conference Board版が雇用環境に敏感なのに対し、ミシガン版は物価・家計負担に敏感。インフレ局面では特にこの指数の落ち込みがインフレ疲れを映す。",
+      "change_label": "前回表示値との差"
     },
     {
       "key": "dgorder",
@@ -129,14 +136,15 @@
       "name_en": "Durable Goods Orders",
       "source": "fred",
       "fred_id": "DGORDER",
-      "unit": "百万ドル",
+      "unit": "前月比 %",
       "frequency": "月次",
       "transform": "mom_pct",
       "transform_label": "前月比",
       "good_direction": "up",
       "category": "生産・投資",
       "description": "自動車・航空機・機械など3年以上使う財への新規受注。企業の設備投資意欲と将来の生産を先読みする先行指標。",
-      "how_to_read": "航空機など変動の大きい項目に振られやすいため、それらを除いたコア（資本財受注）で基調を見るのが実務。受注の伸びは数か月先の景気の強さを示唆する。"
+      "how_to_read": "航空機など変動の大きい項目に振られやすいため、それらを除いたコア（資本財受注）で基調を見るのが実務。受注の伸びは数か月先の景気の強さを示唆する。",
+      "change_label": "前回からの差・ポイント"
     },
     {
       "key": "indpro",
@@ -145,14 +153,15 @@
       "name_en": "Industrial Production",
       "source": "fred",
       "fred_id": "INDPRO",
-      "unit": "指数(2017=100)",
+      "unit": "前月比 %",
       "frequency": "月次",
       "transform": "mom_pct",
       "transform_label": "前月比",
       "good_direction": "up",
       "category": "生産・投資",
       "description": "製造業・鉱業・電力など実体経済の生産活動の体温計。FRBが集計する。",
-      "how_to_read": "生産の前月比が縮小に転じる局面は景気後退の前触れになりやすい。サービス化が進んでも製造業の循環は景気サイクルの王道シグナル。"
+      "how_to_read": "生産の前月比が縮小に転じる局面は景気後退の前触れになりやすい。サービス化が進んでも製造業の循環は景気サイクルの王道シグナル。",
+      "change_label": "前回からの差・ポイント"
     },
     {
       "key": "ism_pmi",
@@ -169,9 +178,10 @@
       "transform_label": "前月比",
       "good_direction": "up",
       "category": "景況感",
-      "description": "製造業の新規受注総額（前月比）。企業がこれから生産する量の先取りとなり、製造業の勢いを映す先行指標。この枠は本来ISM製造業PMI（景況感の代表指標）を置く想定だが、ISMは無料で自動取得できないため、相関の高い新規受注を景況感の代替として表示している。",
+      "description": "米製造業の新規受注総額の前月比。ISM製造業PMIとは異なる統計で、製造業の需要の動きを確認するために掲載しています。",
       "how_to_read": "前月比のプラスが続けば製造業は受注増＝拡大基調、マイナス転落は需要減速のサイン。受注は生産・雇用に先行しやすく、景気の転換点を早めに示す。水準そのものより、プラス/マイナスの方向と連続性で勢いを読む。",
-      "fallback_note": "本来この枠で見たいISM製造業PMI（50が拡大・縮小の境界）は無料で自動取得できないため、相関の高いFRED『製造業新規受注総額(AMTMNO)』の前月比で代替している。正規のISM PMI値（50との比較）はISM公式(ismworld.org)を参照。"
+      "fallback_note": "この枠はISM製造業PMIに代えてAMTMNOを掲載しています。同一指標ではなく、PMIの50という基準は適用できません。",
+      "change_label": "前回からの差・ポイント"
     },
     {
       "key": "permit",
@@ -182,14 +192,15 @@
       "fred_id": "PERMIT",
       "companion_fred_id": "HOUST",
       "companion_name_ja": "住宅着工件数",
-      "unit": "千件(年率)",
+      "unit": "前月比 %",
       "frequency": "月次",
       "transform": "mom_pct",
       "transform_label": "前月比",
       "good_direction": "up",
       "category": "住宅",
       "description": "これから建つ住宅の許可件数。着工に先立つため、住宅市場ひいては景気の先行指標。",
-      "how_to_read": "住宅は金利感応度が高く、利上げ局面では真っ先に冷える。許可件数の減少は金融引き締めが実体に効き始めたサイン。"
+      "how_to_read": "住宅は金利感応度が高く、利上げ局面では真っ先に冷える。許可件数の減少は金融引き締めが実体に効き始めたサイン。",
+      "change_label": "前回からの差・ポイント"
     },
     {
       "key": "cpi",
@@ -206,9 +217,9 @@
       "transform_label": "前年比",
       "good_direction": "down",
       "category": "物価",
-      "threshold": 2,
-      "description": "インフレの体温計。本書の主題そのもの。FRBの物価目標は2%。総合とコア（食品・エネルギー除く）で基調を見る。",
-      "how_to_read": "前年比が2%を大きく上回る局面はFRBが利上げに動く=株・債券の逆風。「デフレ脳からインフレ脳へ」——物価が持続的に上がる世界では現金の目減りを前提に資産を考える、という本書の核心がここに集約される。"
+      "description": "消費者が購入する財・サービスの価格変化。季節調整済みCPIの前年同月比を計算しています。FRBの2%目標はPCE物価指数に対するもので、CPIの判定基準ではありません。",
+      "how_to_read": "前年同月比の水準と変化から物価上昇の勢いを確認します。物価上昇率の低下は、価格水準そのものの下落を意味しません。金融政策は雇用やPCE物価指数などと合わせて判断されます。",
+      "change_label": "前回からの差・ポイント"
     }
   ]
 }

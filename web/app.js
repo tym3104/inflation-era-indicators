@@ -2,7 +2,7 @@
  * data/manifest.json を読んでカードを描画し、クリックで詳細チャートを開く。
  */
 
-const DATA_BASE = "../data";
+const DATA_BASE = "/data";
 let MANIFEST = null;
 let detailChart = null;
 let periodChart = null;
@@ -24,7 +24,7 @@ let EVENTS = [];
 let AI_REPORT = null;
 // グラフのオーバーレイ表示。S&Pは "off" | "pct"(月次騰落率) | "level"(価格)
 let sp500Mode = "off";
-let showEvents = true;
+let showEvents = false;
 
 // 数値フォーマット
 function fmtValue(v, unit) {
@@ -126,6 +126,8 @@ function buildCard(ind) {
   const card = document.createElement("div");
   card.className = "card";
   card.dataset.key = ind.key;
+  card.tabIndex = 0; card.setAttribute("role", "button"); card.setAttribute("aria-label", `${ind.name_ja}の詳細`);
+  card.addEventListener("keydown", e => { if (["Enter", " "].includes(e.key)) {e.preventDefault(); openDetail(ind);} });
 
   const cat = ind.category ? `<span class="card-cat">${ind.category}</span>` : "";
   const head = `
@@ -152,9 +154,10 @@ function buildCard(ind) {
         <span class="card-value">${fmtValue(s.latest_value, ind.unit)}</span>
         <span class="card-unit">${ind.unit || ""}</span>
       </div>
-      <div class="card-change ${dirCls}">${fmtChange(s.change, ind.transform_label || "前回比")}</div>
+      <div class="card-change ${dirCls}">${fmtChange(s.change, ind.change_label || "前回表示値との差")}</div>
       <div class="card-date">${s.latest_date || "—"} 時点</div>
       ${thr}
+      ${ind.stale_days ? `<p class="freshness-note">観測日の古い系列です。出典の更新状況を確認してください。</p>` : ""}
       ${ind._spark ? '<canvas class="spark" width="248" height="32"></canvas>' : ""}
     `;
   } else {
@@ -181,6 +184,7 @@ function buildCard(ind) {
 async function openDetail(ind) {
   const modal = document.getElementById("modal");
   document.getElementById("modal-title").textContent = `No.${ind.no} ${ind.name_ja}`;
+  document.getElementById("modal-source").href = ind.source_url || "https://fred.stlouisfed.org/";
   const s = ind.summary;
   document.getElementById("modal-sub").textContent =
     s ? `最新 ${fmtValue(s.latest_value, ind.unit)} ${ind.unit || ""}（${s.latest_date}）` : "データなし";
@@ -207,7 +211,7 @@ async function openDetail(ind) {
         });
       }
       // 期間内に観測が無い指標（四半期データ等で範囲が狭い場合）は全期間にフォールバック
-      if (series.length < 2) series = SERIES[ind.key];
+      // Preserve the selected range even when it contains zero or one observation.
 
       // 期間ラベルをサブタイトルに反映
       const periodLabel = periodMode === "all" ? "全期間" : periodMode === "custom" ? "指定期間" : "過去12ヶ月";
@@ -306,8 +310,8 @@ function computeSignal(indicators) {
 
 // スコア → 信号レベル/ラベル/色（複数箇所で共有）
 function scoreLevel(score) {
-  if (score >= 25) return { level: "expand", label: "景気拡大ぎみ", color: "var(--up)" };
-  if (score <= -25) return { level: "contract", label: "景気減速ぎみ", color: "var(--down)" };
+  if (score >= 25) return { level: "expand", label: "改善方向の指標が多め", color: "var(--up)" };
+  if (score <= -25) return { level: "contract", label: "悪化方向の指標が多め", color: "var(--down)" };
   return { level: "neutral", label: "中立・まちまち", color: "var(--accent)" };
 }
 
@@ -327,9 +331,9 @@ function renderSignal(sig) {
         <span class="signal-dot" style="background:${sig.color}"></span>
         <div class="signal-text">
           <div class="signal-label" style="color:${sig.color}">${sig.label}</div>
-          <div class="signal-sub">総合スコア
+          <div class="signal-sub">方向スコア（独自の参考値）
             <strong style="color:${sig.color}">${sig.score > 0 ? "+" : ""}${sig.score}</strong>
-            （良い方向 ${sig.plus} / 悪い方向 ${sig.minus} / 中立・除外 ${sig.neutral}）
+            （改善方向 ${sig.plus} / 悪化方向 ${sig.minus} / 中立・除外 ${sig.neutral}）
           </div>
         </div>
       </div>
@@ -340,9 +344,9 @@ function renderSignal(sig) {
                ${sig.score >= 0 ? "" : "transform:translateX(-100%);"}
                background:${sig.color}"></div>
         </div>
-        <div class="signal-bar-labels"><span>減速 −100</span><span>0</span><span>+100 拡大</span></div>
+        <div class="signal-bar-labels"><span>悪化方向 −100</span><span>0</span><span>+100 改善方向</span></div>
       </div>
-    </div>`;
+    </div><p class="method-note">（改善方向の数 − 悪化方向の数）÷ 方向が変化した指標数 × 100。横ばい・欠測は除外。成長率の加速・減速も含む独自集計で、景気判定や売買シグナルではありません。</p>`;
 }
 
 /* ---- 12指標の関係性に関するフラットな分析 ------------------------------
@@ -1042,8 +1046,7 @@ async function init() {
     MANIFEST = await res.json();
   } catch (e) {
     document.getElementById("status-message").innerHTML =
-      "<strong>データが見つかりません。</strong> 先に <code>python scripts/fetch_data.py</code>"
-      + "（または <code>--sample</code>）を実行して data/ を生成してください。";
+      "<strong>データを読み込めませんでした。</strong> 時間をおいて再読み込みしてください。";
     return;
   }
 
@@ -1052,7 +1055,9 @@ async function init() {
   document.getElementById("subtitle").textContent = meta.subtitle || "";
   document.getElementById("source-note").textContent = meta.source_note || "";
   document.getElementById("generated-at").textContent =
-    "更新: " + (MANIFEST.generated_at || "");
+    "データ取得: " + (MANIFEST.generated_at ? new Date(MANIFEST.generated_at).toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"}) + " JST" : "不明");
+  const age = Date.now() - new Date(MANIFEST.generated_at).getTime();
+  document.getElementById("status-message").textContent = `${age > 48*3600000 ? "データの更新が遅れています。 " : ""}毎日10:15 JSTに取得を試行。指標の観測日は公表頻度によって異なります。過去月も改定後の値を含みます。`;
   const badge = document.getElementById("mode-badge");
   if (MANIFEST.mode === "sample") {
     badge.textContent = "サンプルデータ";
@@ -1068,10 +1073,11 @@ async function init() {
     try {
       const res = await fetch(`${DATA_BASE}/${ind.key}.json`);
       const payload = await res.json();
+      if (!res.ok || !Array.isArray(payload.series)) throw Error("invalid series");
       SERIES[ind.key] = payload.series;
       payload.series.forEach((p) => monthSet.add(monthKey(p.date)));
     } catch (e) {
-      console.error(`系列読込失敗: ${ind.key}`, e);
+      ind.status = "error"; ind.summary = null; console.error(`系列読込失敗: ${ind.key}`);
     }
   }));
 
@@ -1081,7 +1087,7 @@ async function init() {
     sp.series.forEach((p) => { SP500[p.month] = { pct: p.pct, level: p.level }; });
   } catch (e) { console.warn("S&P500データなし", e); }
   try {
-    const ev = await (await fetch(`../config/events.json`)).json();
+    const ev = await (await fetch(`/config/events.json`)).json();
     EVENTS = ev.events || [];
   } catch (e) { console.warn("イベント定義なし", e); }
   await detectServerConfig();
@@ -1090,7 +1096,7 @@ async function init() {
   MONTHS = [...monthSet].sort();
   if (!MONTHS.length) {
     document.getElementById("status-message").textContent =
-      "時系列データがありません。fetch_data.py を実行してください。";
+      "時系列データを読み込めませんでした。時間をおいて再読み込みしてください。";
     return;
   }
   currentMonth = MONTHS[MONTHS.length - 1];     // 既定は最新月
@@ -1114,3 +1120,12 @@ async function init() {
 }
 
 init();
+
+let modalOrigin = null;
+for (const modal of document.querySelectorAll('.modal')) {
+  new MutationObserver(() => {
+    if (!modal.classList.contains('hidden')) {modalOrigin=document.activeElement;modal.querySelector('button')?.focus();}
+    else if(modalOrigin) {modalOrigin.focus();modalOrigin=null;}
+  }).observe(modal,{attributes:true,attributeFilter:['class']});
+  modal.addEventListener('keydown',e=>{if(e.key!=='Tab')return;const items=[...modal.querySelectorAll('button,a[href],select,input')].filter(x=>!x.disabled);const first=items[0],last=items.at(-1);if(e.shiftKey && document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first.focus();}});
+}

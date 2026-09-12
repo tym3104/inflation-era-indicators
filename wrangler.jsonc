@@ -1,0 +1,35 @@
+{
+  "name": "withawai-inflation",
+  "main": "cloudflare/worker.mjs",
+  "account_id": "261d92b7eb6f6e2fe247429eaf25f7e4",
+  "compatibility_date": "2026-09-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "economy.withawai.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+    "run_worker_first": true,
+    "html_handling": "force-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "version_metadata": {
+    "binding": "VERSION"
+  },
+  "triggers": {
+    "crons": [
+      "15 1 * * *"
+    ]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "DATA",
+      "id": "985adedf67444aa58c8ebe53029d5660"
+    }
+  ]
+}

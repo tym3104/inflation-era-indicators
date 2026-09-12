@@ -1,0 +1,28 @@
+/*! withAwaI Foundation v2.0.0 | explicit night expression; no automatic theme switching */
+[data-ui-scheme="night"] {
+  color-scheme: dark;
+  --ui-brand: #c4d9bb;
+  --ui-bg: #111318;
+  --ui-surface: #1d222b;
+  --ui-surface-raised: #282e38;
+  --ui-text: #f5f6f1;
+  --ui-muted: #bdc6c2;
+  --ui-border: #8b969d;
+  --ui-divider: #ffffff30;
+  --ui-focus: #9bcaff;
+  --ui-danger: #ffb4b8;
+  --ui-danger-bg: #391e25;
+  --ui-success: #b2dba9;
+  --ui-success-bg: #1b3127;
+  --ui-warning: #f1d18a;
+  --ui-warning-bg: #342b1b;
+  --ui-info: #a9d2ff;
+  --ui-info-bg: #1b2b40;
+  --ui-shadow-sm: 0 2px 8px #00000030;
+  --ui-shadow-lg: 0 12px 36px #00000060;
+  --product-accent: #d2ed91;
+  --product-accent-hover: #e0f7ae;
+  --product-on-accent: #19251a;
+  color: var(--ui-text);
+  background: var(--ui-bg);
+}
