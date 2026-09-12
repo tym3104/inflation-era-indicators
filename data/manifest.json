@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-26T09:50:55",
+  "generated_at": "2026-09-12T19:39:15",
   "mode": "fred",
   "meta": {
     "title": "世界インフレ時代の経済指標ダッシュボード",
@@ -23,16 +23,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 172.0,
-        "latest_date": "2026-05-01",
-        "prev_value": 179.0,
-        "change": -7.0,
-        "direction": "down"
+        "latest_value": 162.0,
+        "latest_date": "2026-08-01",
+        "prev_value": 21.0,
+        "change": 141.0,
+        "direction": "up"
       },
       "spark": [
-        755.0,
-        942.0,
-        552.0,
         457.0,
         801.0,
         658.0,
@@ -88,8 +85,11 @@
         160.0,
         -156.0,
         214.0,
-        179.0,
-        172.0
+        148.0,
+        63.0,
+        31.0,
+        21.0,
+        162.0
       ]
     },
     {
@@ -108,24 +108,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 215000.0,
-        "latest_date": "2026-06-20",
-        "prev_value": 227000.0,
-        "change": -12000.0,
+        "latest_value": 206000.0,
+        "latest_date": "2026-09-05",
+        "prev_value": 207000.0,
+        "change": -1000.0,
         "direction": "down"
       },
       "spark": [
-        228000.0,
-        226000.0,
-        225000.0,
-        236000.0,
-        244000.0,
-        246000.0,
-        243000.0,
-        236000.0,
-        231000.0,
-        228000.0,
-        221000.0,
         218000.0,
         219000.0,
         226000.0,
@@ -174,7 +163,18 @@
         225000.0,
         230000.0,
         227000.0,
-        215000.0
+        216000.0,
+        217000.0,
+        217000.0,
+        209000.0,
+        189000.0,
+        198000.0,
+        200000.0,
+        212000.0,
+        207000.0,
+        204000.0,
+        207000.0,
+        206000.0
       ]
     },
     {
@@ -193,15 +193,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 0.881,
-        "latest_date": "2026-05-01",
-        "prev_value": 0.401,
-        "change": 0.48,
-        "direction": "up"
+        "latest_value": -0.582,
+        "latest_date": "2026-07-01",
+        "prev_value": 0.245,
+        "change": -0.827,
+        "direction": "down"
       },
       "spark": [
-        1.102,
-        -1.656,
         0.617,
         0.683,
         1.46,
@@ -247,10 +245,10 @@
         0.044,
         1.653,
         -0.124,
-        -1.09,
-        1.185,
-        0.649,
-        0.546,
+        -1.098,
+        0.696,
+        1.069,
+        0.622,
         0.067,
         -0.156,
         0.502,
@@ -258,8 +256,10 @@
         -0.029,
         0.922,
         1.718,
-        0.401,
-        0.881
+        0.674,
+        0.935,
+        0.245,
+        -0.582
       ]
     },
     {
@@ -278,14 +278,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 2.089,
-        "latest_date": "2026-01-01",
-        "prev_value": 0.482,
-        "change": 1.607,
-        "direction": "up"
+        "latest_value": 1.484,
+        "latest_date": "2026-04-01",
+        "prev_value": 2.089,
+        "change": -0.606,
+        "direction": "down"
       },
       "spark": [
-        2.868,
         2.236,
         1.962,
         2.258,
@@ -323,7 +322,8 @@
         3.838,
         4.375,
         0.482,
-        2.089
+        2.089,
+        1.484
       ]
     },
     {
@@ -342,15 +342,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 0.713,
-        "latest_date": "2026-05-01",
-        "prev_value": 0.408,
-        "change": 0.305,
-        "direction": "up"
+        "latest_value": 0.163,
+        "latest_date": "2026-07-01",
+        "prev_value": 0.35,
+        "change": -0.187,
+        "direction": "down"
       },
       "spark": [
-        1.366,
-        0.296,
         1.067,
         0.467,
         1.301,
@@ -407,8 +405,10 @@
         0.153,
         0.618,
         0.941,
-        0.408,
-        0.713
+        0.618,
+        0.853,
+        0.35,
+        0.163
       ]
     },
     {
@@ -427,14 +427,13 @@
       "fallback_note": "Conference Board公式版はFRED非収録のためOECD系列(USACSCICP02STSAM)で代替。厳密な水準比較は公式値を参照。",
       "status": "ok",
       "summary": {
-        "latest_value": 48.202,
-        "latest_date": "2026-05-01",
-        "prev_value": 53.582,
-        "change": -5.38,
-        "direction": "down"
+        "latest_value": 53.259,
+        "latest_date": "2026-06-01",
+        "prev_value": 48.202,
+        "change": 5.057,
+        "direction": "up"
       },
       "spark": [
-        91.993,
         87.367,
         75.639,
         78.329,
@@ -493,7 +492,8 @@
         60.898,
         57.348,
         53.582,
-        48.202
+        48.202,
+        53.259
       ]
     },
     {
@@ -512,16 +512,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 49.8,
-        "latest_date": "2026-04-01",
-        "prev_value": 53.3,
-        "change": -3.5,
-        "direction": "down"
+        "latest_value": 55.2,
+        "latest_date": "2026-07-01",
+        "prev_value": 49.5,
+        "change": 5.7,
+        "direction": "up"
       },
       "spark": [
-        82.9,
-        85.5,
-        81.2,
         70.3,
         72.8,
         71.7,
@@ -578,7 +575,10 @@
         56.4,
         56.6,
         53.3,
-        49.8
+        49.8,
+        44.8,
+        49.5,
+        55.2
       ]
     },
     {
@@ -597,15 +597,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": -4.478,
-        "latest_date": "2026-05-01",
-        "prev_value": 8.466,
-        "change": -12.945,
-        "direction": "down"
+        "latest_value": 1.076,
+        "latest_date": "2026-07-01",
+        "prev_value": 0.58,
+        "change": 0.496,
+        "direction": "up"
       },
       "spark": [
-        2.085,
-        0.438,
         1.878,
         -1.928,
         1.675,
@@ -662,8 +660,10 @@
         -0.425,
         -1.169,
         1.345,
-        8.466,
-        -4.478
+        8.513,
+        -4.004,
+        0.58,
+        1.076
       ]
     },
     {
@@ -682,15 +682,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 0.135,
-        "latest_date": "2026-05-01",
-        "prev_value": 0.868,
-        "change": -0.732,
+        "latest_value": 0.201,
+        "latest_date": "2026-07-01",
+        "prev_value": 0.27,
+        "change": -0.069,
         "direction": "down"
       },
       "spark": [
-        0.367,
-        0.454,
         -0.208,
         -1.185,
         1.344,
@@ -744,11 +742,13 @@
         -0.441,
         -0.183,
         0.455,
-        -0.365,
-        0.817,
-        -0.316,
-        0.868,
-        0.135
+        -0.449,
+        0.858,
+        -0.148,
+        0.752,
+        -0.01,
+        0.27,
+        0.201
       ]
     },
     {
@@ -767,16 +767,13 @@
       "fallback_note": "本来この枠で見たいISM製造業PMI（50が拡大・縮小の境界）は無料で自動取得できないため、相関の高いFRED『製造業新規受注総額(AMTMNO)』の前月比で代替している。正規のISM PMI値（50との比較）はISM公式(ismworld.org)を参照。",
       "status": "ok",
       "summary": {
-        "latest_value": 4.754,
-        "latest_date": "2026-04-01",
-        "prev_value": 1.826,
-        "change": 2.928,
+        "latest_value": 0.886,
+        "latest_date": "2026-07-01",
+        "prev_value": -0.159,
+        "change": 1.044,
         "direction": "up"
       },
       "spark": [
-        1.241,
-        2.129,
-        1.153,
         1.09,
         -0.221,
         2.438,
@@ -833,7 +830,10 @@
         0.035,
         0.315,
         1.826,
-        4.754
+        5.255,
+        -1.06,
+        -0.159,
+        0.886
       ]
     },
     {
@@ -852,15 +852,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": -0.914,
-        "latest_date": "2026-05-01",
-        "prev_value": 4.402,
-        "change": -5.316,
-        "direction": "down"
+        "latest_value": 4.294,
+        "latest_date": "2026-07-01",
+        "prev_value": -2.553,
+        "change": 6.847,
+        "direction": "up"
       },
       "spark": [
-        -2.522,
-        0.241,
         4.442,
         -5.23,
         3.032,
@@ -918,7 +916,9 @@
         10.553,
         -11.494,
         4.402,
-        -0.914
+        -0.914,
+        -2.553,
+        4.294
       ]
     },
     {
@@ -937,16 +937,13 @@
       "fallback_note": null,
       "status": "ok",
       "summary": {
-        "latest_value": 4.167,
-        "latest_date": "2026-05-01",
-        "prev_value": 3.779,
-        "change": 0.387,
+        "latest_value": 3.353,
+        "latest_date": "2026-08-01",
+        "prev_value": 3.304,
+        "change": 0.049,
         "direction": "up"
       },
       "spark": [
-        4.918,
-        5.296,
-        5.245,
         5.152,
         5.351,
         6.235,
@@ -1003,7 +1000,10 @@
         2.434,
         3.286,
         3.779,
-        4.167
+        4.167,
+        3.464,
+        3.304,
+        3.353
       ]
     }
   ],
