@@ -2,6 +2,7 @@
 [data-ui-scheme="night"] {
   color-scheme: dark;
   --ui-brand: #c4d9bb;
+  --ui-gold-text: var(--ui-gold);
   --ui-bg: #111318;
   --ui-surface: #1d222b;
   --ui-surface-raised: #282e38;
@@ -26,3 +27,5 @@
   color: var(--ui-text);
   background: var(--ui-bg);
 }
+/* Approved logos carry dark ink; on night surfaces seat them on a brand-paper plate instead of a white box. */
+[data-ui-scheme="night"] .ui-product-logo { box-sizing: border-box; padding: 4px 10px; background: var(--ui-paper); border-radius: var(--ui-radius-sm); }

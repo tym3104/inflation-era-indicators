@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja" data-ui-foundation="withawai-2.0.0" data-ui-scheme="dark">
+<html lang="ja" data-ui-foundation="withawai-2.1.0" data-ui-scheme="night">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -50,7 +50,7 @@
           <a href="https://fred.stlouisfed.org/series/SP500" target="_blank" rel="noopener noreferrer">S&amp;P 500は出典サイトで確認 ↗</a>
         </div>
         <p id="period-caption" class="period-caption"></p>
-        <div class="period-chart-wrap"><canvas id="period-chart"></canvas></div>
+        <div class="period-chart-wrap"><canvas id="period-chart" role="img" aria-label="方向スコアの推移"></canvas></div>
       </section>
 
       <details class="analysis-disclosure"><summary>指標の関係性を読む（ルールベースの整理）</summary><section id="analysis" class="analysis" aria-label="12指標の関係性に関する分析"></section></details>
@@ -86,7 +86,7 @@
       <button id="modal-close" class="modal-close" aria-label="閉じる">&times;</button>
       <h2 id="modal-title"></h2>
       <p id="modal-sub" class="modal-sub"></p>
-      <div class="chart-wrap"><canvas id="detail-chart"></canvas></div>
+      <div class="chart-wrap"><canvas id="detail-chart" role="img" aria-label="指標の推移"></canvas></div>
       <div class="modal-read">
         <h3>この指標とは</h3>
         <p id="modal-desc"></p>
