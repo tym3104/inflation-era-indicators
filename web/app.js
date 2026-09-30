@@ -55,8 +55,13 @@ function directionClass(direction, goodDirection) {
 // スパークライン（小さな折れ線）を canvas に描く
 function drawSpark(canvas, data, color) {
   if (!data || data.length < 2) return;
+  // 表示幅に合わせて高精細に描く（データと縦横の比率は変えない）
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.width, cssH = canvas.clientHeight || canvas.height;
+  canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
   const ctx = canvas.getContext("2d");
-  const w = canvas.width, h = canvas.height;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = cssW, h = cssH;
   const min = Math.min(...data), max = Math.max(...data);
   const range = max - min || 1;
   ctx.clearRect(0, 0, w, h);
@@ -69,6 +74,19 @@ function drawSpark(canvas, data, color) {
   ctx.strokeStyle = color;
   ctx.lineWidth = 1.5;
   ctx.stroke();
+}
+
+// Chart.js の共通の見た目（値・軸の意味は変えない）
+function applyChartDefaults() {
+  if (typeof Chart === "undefined") return;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = cssVar("--text-dim");
+  Object.assign(Chart.defaults.plugins.tooltip, {
+    backgroundColor: "#0d1a15f2", borderColor: "#d9b77b66", borderWidth: 1,
+    titleColor: "#f3f2e9", bodyColor: "#f3f2e9", padding: 10, cornerRadius: 8,
+    displayColors: true, boxPadding: 4,
+  });
 }
 
 function cssVar(name) {
@@ -173,7 +191,7 @@ function buildCard(ind) {
       const dirCls = directionClass(ind.summary.direction, ind.good_direction);
       const color = dirCls === "dir-up" ? cssVar("--up")
         : dirCls === "dir-down" ? cssVar("--down") : cssVar("--flat");
-      drawSpark(canvas, ind._spark, color);
+      canvas._spark = { data: ind._spark, color };
     }
   }
 
@@ -220,6 +238,8 @@ async function openDetail(ind) {
         `${baseSub}　／　表示期間: ${periodLabel}（${from} 〜 ${to}）`;
 
       const labels = series.map((p) => p.date);
+      document.getElementById("detail-chart").setAttribute("aria-label",
+        `${ind.name_ja}の推移（${from} 〜 ${to}）。数値は出典のFREDでも確認できます。`);
       const values = series.map((p) => p.value);
       const ctx = document.getElementById("detail-chart").getContext("2d");
       detailChart = new Chart(ctx, {
@@ -230,16 +250,20 @@ async function openDetail(ind) {
             label: `${ind.name_ja}（${ind.transform_label || ""}）`,
             data: values,
             borderColor: cssVar("--accent"),
-            backgroundColor: "rgba(245,179,1,0.08)",
-            fill: true, pointRadius: 0, borderWidth: 2, tension: 0.15,
+            backgroundColor: "rgba(217,183,123,0.10)",
+            fill: true, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2, tension: 0.15,
           }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: cssVar("--text-dim") } } },
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { labels: { color: cssVar("--text-dim"), boxWidth: 12, boxHeight: 2 } },
+            tooltip: { callbacks: { labelColor: (c) => ({ borderColor: c.dataset.borderColor, backgroundColor: c.dataset.borderColor }) } },
+          },
           scales: {
-            x: { ticks: { color: cssVar("--text-dim"), maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.04)" } },
-            y: { ticks: { color: cssVar("--text-dim") }, grid: { color: "rgba(255,255,255,0.06)" } },
+            x: { ticks: { color: cssVar("--text-dim"), maxTicksLimit: 6, maxRotation: 0 }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: { ticks: { color: cssVar("--text-dim") }, grid: { color: "rgba(255,255,255,0.08)" }, border: { display: false } },
           },
         },
       });
@@ -904,6 +928,9 @@ function renderPeriodChart() {
   // 点ごとに信号色で塗り分け
   const pointColors = scores.map((sc) =>
     sc >= 25 ? cssVar("--up") : sc <= -25 ? cssVar("--down") : cssVar("--accent"));
+  // 色だけに頼らないよう、同じ3段階を点の形でも示す（改善=▲、悪化=▼、中立=●）
+  const pointStyles = scores.map((sc) => sc >= 25 ? "triangle" : sc <= -25 ? "triangle" : "circle");
+  const pointRotations = scores.map((sc) => sc <= -25 ? 180 : 0);
 
   const datasets = [{
     label: "総合スコア", yAxisID: "y",
@@ -911,7 +938,8 @@ function renderPeriodChart() {
     borderColor: cssVar("--text-dim"),
     backgroundColor: "rgba(255,255,255,0.04)",
     fill: true, borderWidth: 2, tension: 0.2,
-    pointRadius: months.length <= 24 ? 4 : 0,
+    pointRadius: months.length <= 24 ? 5 : 0, pointHoverRadius: 6,
+    pointStyle: pointStyles, rotation: pointRotations,
     pointBackgroundColor: pointColors, pointBorderColor: pointColors,
   }];
 
@@ -928,9 +956,10 @@ function renderPeriodChart() {
   }
 
   const scales = {
-    x: { ticks: { color: cssVar("--text-dim"), maxTicksLimit: 10 }, grid: { color: "rgba(255,255,255,0.04)" } },
+    x: { ticks: { color: cssVar("--text-dim"), maxTicksLimit: 10, maxRotation: 0 }, grid: { color: "rgba(255,255,255,0.04)" } },
     y: { position: "left", min: -100, max: 100, ticks: { color: cssVar("--text-dim"), stepSize: 50 },
-         grid: { color: "rgba(255,255,255,0.06)" }, title: { display: true, text: "総合スコア", color: cssVar("--text-dim") } },
+         grid: { color: (c) => c.tick && c.tick.value === 0 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.07)" },
+         border: { display: false }, title: { display: true, text: "総合スコア", color: cssVar("--text-dim") } },
   };
   if (spOn) {
     scales.y1 = { position: "right", ticks: { color: cssVar("--accent") },
@@ -940,6 +969,7 @@ function renderPeriodChart() {
 
   // イベントラベルが必要とする段数を見積もり、その分だけ上部に余白を確保する
   // （ラベルがスコア線に重ならないよう、プロット領域の上にラベル帯を作る）
+  canvas.setAttribute("aria-label", `方向スコアの推移（${months[0]} 〜 ${months[months.length - 1]}）。点の形は▲改善方向が多め・●中立・▼悪化方向が多め。`);
   const topPad = showEvents ? estimateEventLanes(labels) * EVENT_LANE_H + 6 : 4;
 
   periodChart = new Chart(ctx, {
@@ -1021,9 +1051,18 @@ function rerender() {
   const grid = document.getElementById("cards");
   grid.innerHTML = "";
   inds.sort((a, b) => a.no - b.no).forEach((ind) => grid.appendChild(buildCard(ind)));
+  drawAllSparks();
 }
 
+// カードをDOMに置いたあとで、表示幅に合わせてスパークラインを描く
+function drawAllSparks() {
+  document.querySelectorAll("#cards .spark").forEach((c) => { if (c._spark) drawSpark(c, c._spark.data, c._spark.color); });
+}
+let sparkResizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(sparkResizeTimer); sparkResizeTimer = setTimeout(drawAllSparks, 150); });
+
 async function init() {
+  applyChartDefaults();
   document.getElementById("modal-close").addEventListener("click", closeModal);
   document.getElementById("modal").addEventListener("click", (e) => {
     if (e.target.id === "modal") closeModal();
