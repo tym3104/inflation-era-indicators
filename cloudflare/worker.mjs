@@ -1,12 +1,17 @@
 import {enrich,refresh,config} from './data.mjs';
-const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.anthropic.com https://api.openai.com; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"};
+import {runAnalysis,getAnalysis} from './analysis.mjs';
+const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"};
 const json=(value,status=200)=>Response.json(value,{status,headers:{...headers,'Cache-Control':'public, max-age=60'}});
 export default {
   async fetch(request,env) {
     const url=new URL(request.url),path=url.pathname;
     if(!['GET','HEAD'].includes(request.method))return json({error:'閲覧専用です'},405);
     if(path==='/api/config')return json({can_generate:false,public:true});
-    if(path==='/api/analysis')return json({error:'公開版はルールベースの整理を提供します'},404);
+    if(path==='/api/analysis') {
+      let bundle=null;try {bundle=await env.DATA.get('current','json');}catch{}
+      const out=await getAnalysis(env,url.searchParams.get('month'),bundle);
+      return json(out,out.status==='bad_request'?400:200);
+    }
     if(path.startsWith('/api/'))return json({error:'Not found'},404);
     if(path==='/health')return json({status:'ok',service:'withawai-inflation',version:env.VERSION?.id??'local',can_generate:false});
     if(path==='/web/' || path==='/web/index.html')return Response.redirect(`${url.origin}/`,301);
@@ -33,7 +38,9 @@ export default {
     return out;
   },
   async scheduled(event,env,ctx) {
-    ctx.waitUntil(refresh(env).catch(async error=>{
+    // 毎時：新しい公表が入った月・未作成の月のAI分析を作る（キー未設定なら何もしない）。
+    if(event.cron!=='15 1 * * *') { ctx.waitUntil(runAnalysis(env).catch(()=>console.error('AI analysis run failed'))); return; }
+    ctx.waitUntil(refresh(env).then(bundle=>runAnalysis(env,{bundle}).catch(()=>console.error('AI analysis run failed'))).catch(async error=>{
       // Store only sanitized error messages; never an upstream URL containing a key.
       await env.DATA.put('refresh-status',JSON.stringify({checkedAt:new Date().toISOString(),success:false,error:'FRED refresh failed; previous complete snapshot retained'}));
       console.error('FRED refresh failed; previous complete snapshot retained');

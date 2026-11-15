@@ -20,8 +20,6 @@ let customFrom = null, customTo = null;
 // S&P500月次データ: { "YYYY-MM": {pct, level} }、イベント定義
 let SP500 = {};
 let EVENTS = [];
-// AI生成レポート（analysis.json）。無ければnull→ルールベースにフォールバック
-let AI_REPORT = null;
 // グラフのオーバーレイ表示。S&Pは "off" | "pct"(月次騰落率) | "level"(価格)
 let sp500Mode = "off";
 let showEvents = false;
@@ -373,345 +371,72 @@ function renderSignal(sig) {
     </div><p class="method-note">（改善方向の数 − 悪化方向の数）÷ 方向が変化した指標数 × 100。横ばい・欠測は除外。成長率の加速・減速も含む独自集計で、景気判定や売買シグナルではありません。</p>`;
 }
 
-/* ---- 12指標の関係性に関するフラットな分析 ------------------------------
- * カテゴリ別に各指標の方向を集約し、12指標の状況・変遷・先行きの示唆を
- * 中立的な視点（特定の投資哲学に寄せない）でルール生成する。
+/* ---- AIによる12指標の関係性の分析 -------------------------------------
+ * サーバー（Worker）が新しいデータの取得に合わせて運営のキーでLLMに作らせ、月ごとに保存した分析を表示する。
+ * 利用者側のLLM設定はない。ルールベースの整理は2026-11-16に廃止。
  */
-// currentMonth から nMonths 前の月のスコアを返す（範囲外はnull）
-function scoreMonthsAgo(nMonths) {
-  const idx = monthIndex(currentMonth) - nMonths;
-  if (idx < 0) return null;
-  return computeSignalAt(MONTHS[idx]).score;
-}
-
-// 先行指標とされるカテゴリ（先行きの示唆に使う）
-const LEADING_CATEGORIES = ["住宅", "景況感", "センチメント", "生産・投資"];
-
-function buildAnalysis() {
-  const inds = indicatorsAt(currentMonth);
-
-  // 1) カテゴリ別に「良い方向に動いている指標」を集計
-  const byCat = {};
-  inds.forEach((ind) => {
-    const s = ind.summary;
-    if (!s || !ind.good_direction || s.direction === "flat" || s.direction == null) return;
-    const c = ind.category || "その他";
-    byCat[c] = byCat[c] || { good: 0, bad: 0, names: [] };
-    const good = s.direction === ind.good_direction;
-    good ? byCat[c].good++ : byCat[c].bad++;
-    byCat[c].names.push({ name: ind.name_ja, good });
-  });
-  // カテゴリの強弱を判定
-  const catState = (c) => {
-    const v = byCat[c]; if (!v) return null;
-    const net = v.good - v.bad;
-    if (net > 0) return "良好";
-    if (net < 0) return "弱い";
-    return "まちまち";
-  };
-  const cats = Object.keys(byCat);
-  const strongCats = cats.filter((c) => catState(c) === "良好");
-  const weakCats = cats.filter((c) => catState(c) === "弱い");
-  const mixedCats = cats.filter((c) => catState(c) === "まちまち");
-
-  // 2) 変遷：固定の3ヶ月/1年/3年ではなく、利用可能なデータ範囲から
-  //    意味のある区切り（足元・中期・転換点）を動的に拾う。
-  const now = computeSignalAt(currentMonth).score;
-  const endIdx = monthIndex(currentMonth);
-  // 現在月までのスコア系列を作る
-  const path = MONTHS.slice(0, endIdx + 1).map((m) => ({ m, s: computeSignalAt(m).score }));
-  const history = analyzePath(path);
-
-  // 3) 先行指標カテゴリの向き（先行きの示唆）
-  let leadGood = 0, leadBad = 0;
-  LEADING_CATEGORIES.forEach((c) => { if (byCat[c]) { leadGood += byCat[c].good; leadBad += byCat[c].bad; } });
-  const leadNet = leadGood - leadBad;
-
-  return { now, byCat, catState, strongCats, weakCats, mixedCats, history, leadNet, leadGood, leadBad };
-}
-
-// スコア系列から「足元の向き」「中期の基調」「直近の転換点」を抽出する。
-// データの長さに応じて参照する窓を自動調整し、固定期間に縛られない。
-function analyzePath(path) {
-  const n = path.length;
-  if (n < 2) return { enough: false };
-  const cur = path[n - 1].s;
-
-  // 期間の長さを言葉で表す（月→「Nヶ月」/「N年」）
-  const spanWord = (months) => months >= 24 ? `約${Math.round(months / 12)}年`
-    : months >= 12 ? "約1年" : `約${months}ヶ月`;
-  const word = (d) => d > 18 ? "大きく改善" : d > 8 ? "改善" :
-    d < -18 ? "大きく悪化" : d < -8 ? "悪化" : "ほぼ横ばい";
-
-  // 足元の向き：直近min(3, n-1)ヶ月の変化
-  const recentWin = Math.min(3, n - 1);
-  const recentDiff = cur - path[n - 1 - recentWin].s;
-
-  // 中期の基調：データ全体の長さに応じた窓（最大36ヶ月、最小は足元より長く）
-  const midWin = Math.min(n - 1, 36);
-  const midDiff = cur - path[n - 1 - midWin].s;
-
-  // 直近の転換点：後ろから見て、傾きの符号が反転する最後の点を探す（簡易な山/谷検出）
-  // しきい値を超える「向きの持続」が変わった位置を転換点とみなす。
-  let pivot = null;
-  if (n >= 6) {
-    const dir = (a, b) => { const d = b - a; return d > 4 ? 1 : d < -4 ? -1 : 0; };
-    // 直近の支配的な向き
-    let lastDir = 0;
-    for (let i = n - 1; i >= 1; i--) {
-      const d = dir(path[i - 1].s, path[i].s);
-      if (d === 0) continue;
-      if (lastDir === 0) { lastDir = d; continue; }
-      if (d !== lastDir) { pivot = { m: path[i].m, fromDir: d, toDir: lastDir }; break; }
-    }
-  }
-
-  return {
-    enough: true, cur, word, spanWord,
-    recentWin, recentDiff,
-    midWin, midDiff,
-    pivot,
-    fullMonths: n - 1,
-  };
-}
-
-// ① 現状の文章
-function analysisCurrent(a) {
-  // カテゴリ名自体に「・」を含むものがある（生産・投資）ため、区切りは「／」を使う
-  const join = (arr) => arr.join("／");
-  const parts = [];
-  if (a.strongCats.length) parts.push(`<strong>${join(a.strongCats)}</strong>が相対的に堅調`);
-  if (a.weakCats.length) parts.push(`<strong>${join(a.weakCats)}</strong>が弱含み`);
-  if (a.mixedCats.length) parts.push(`${join(a.mixedCats)}はまちまち`);
-  if (!parts.length) return "各指標の方向感が定まらず、分野ごとの強弱は判然としない。";
-  let s = `12指標を分野別に見ると、${parts.join("、")}という構図だ。`;
-  // 分野間の整合/不整合に言及
-  if (a.strongCats.length && a.weakCats.length) {
-    s += `好調な分野と弱い分野が併存しており、景気の力強さと脆さが同居している。`;
-  } else if (a.strongCats.length && !a.weakCats.length) {
-    s += `弱い分野が見当たらず、幅広い指標が同じ方向（拡大側）を向いている。`;
-  } else if (a.weakCats.length && !a.strongCats.length) {
-    s += `堅調な分野が乏しく、悪化が広い範囲に及んでいる。`;
-  }
-  return s;
-}
-
-// ② 変遷の文章（固定期間に縛られず、データ範囲に応じて柔軟に言及）
-function analysisHistory(a) {
-  const h = a.history;
-  if (!h || !h.enough) return "比較できる過去データが十分でなく、変遷は評価しきれない。";
-
-  const segs = [];
-  // 中期の基調（窓が足元より十分長いときだけ別途言及）
-  if (h.midWin > h.recentWin + 2) {
-    segs.push(`${h.spanWord(h.midWin)}のスパンで見ると${h.word(h.midDiff)}`);
-  }
-  // 足元の向き
-  segs.push(`直近${h.spanWord(h.recentWin)}では${h.word(h.recentDiff)}`);
-  let s = `12指標を束ねた総合の流れは、${segs.join("、")}している。`;
-
-  // 転換点があれば「～頃を境に」と具体的に触れる
-  if (h.pivot) {
-    const turn = h.pivot.toDir > 0 ? "持ち直しに転じた" : "下押しに転じた";
-    s += `${h.pivot.m}頃を境に${turn}動きが見て取れる。`;
-  } else {
-    // 転換点がない＝一貫した流れ。中期と足元の整合/不整合で締める
-    const r = h.recentDiff, m = h.midDiff;
-    if (r > 8 && m < -8) s += `中期では下押しが続く一方、足元では持ち直しの兆しが出ている。`;
-    else if (r < -8 && m > 8) s += `中期の改善基調に対し、ここへ来て息切れの感がある。`;
-    else if (r < -8 && m < -8) s += `中期・足元ともに弱含みで、減速が定着しつつある。`;
-    else if (r > 8 && m > 8) s += `中期・足元がそろって上向き、拡大の勢いが続いている。`;
-    else s += `大きな転換は見られず、緩やかな地合いが続いている。`;
-  }
-  return s;
-}
-
-// ③ 先行きの示唆の文章
-function analysisOutlook(a) {
-  const leadNames = LEADING_CATEGORIES.filter((c) => a.byCat[c]);
-  const leadPhrase = leadNames.length ? `先行性の高い${leadNames.join("／")}` : "先行指標";
-  if (a.leadGood === 0 && a.leadBad === 0) {
-    return `先行指標の方向感が乏しく、当面は現状の地合いが続くかどうかを見極める段階だ。`;
-  }
-  if (a.leadNet > 0) {
-    return `${leadPhrase}が上向きに傾いており、数ヶ月先にかけて景気が底堅く推移する可能性を示唆している。`
-      + `ただし物価や金利の動向次第では、この先行性が打ち消される点には留意が要る。`;
-  }
-  if (a.leadNet < 0) {
-    return `${leadPhrase}が下を向いており、数ヶ月先にかけて減速が広がるリスクをはらむ。`
-      + `遅行性のある雇用や生産が後追いで弱まるか、先行指標が下げ止まるかが今後の分岐点となる。`;
-  }
-  return `${leadPhrase}は強弱が拮抗しており、当面は方向感の乏しいもみ合いが続きやすい。`;
-}
-
+const ANALYSIS_CACHE = {};
 function escapeHtml(s) {
   return String(s == null ? "" : s)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-
-// サーバーAPI（server.py）が使えるか。生成ボタンの可否判定に使う。
-let API_AVAILABLE = false;
-// 生成が許可されているか（公開モードでは false）
-let CAN_GENERATE = false;
-
-// サーバー設定を一度だけ確認（server.py のAPIが使えるか／公開モードか）。
-// /api/config が JSON で返ったときだけ「APIあり」と判定する。
-// GitHub Pages 等の静的配信では 404（HTMLページ）になり API_AVAILABLE は false のまま。
-async function detectServerConfig() {
-  try {
-    const cfg = await fetch(`/api/config`);
-    if (cfg.ok) {
-      const ct = cfg.headers.get("content-type") || "";
-      if (ct.includes("application/json")) {
-        const c = await cfg.json();
-        API_AVAILABLE = true;
-        CAN_GENERATE = !!c.can_generate;
-      }
-    }
-  } catch (e) { /* 静的配信ならAPIなし */ }
+function indicatorName(no) {
+  const ind = (MANIFEST?.indicators || []).find((i) => i.no === no);
+  return ind ? ind.name_ja.replace(/（.*?）/g, "") : `No.${no}`;
 }
-
-// 指定月（省略時は最新）のAIレポートを読み込む。
-// API_AVAILABLE（=server.py）なら /api/analysis、それ以外は静的ファイル data/analysis/。
-async function loadAIReport(month) {
-  AI_REPORT = null;
-  if (API_AVAILABLE) {
-    // server.py 経由
-    try {
-      const q = month ? `?month=${month}` : "";
-      const res = await fetch(`/api/analysis${q}`);
-      if (res.ok) AI_REPORT = await res.json();
-      // 404 はその月が未生成 → AI_REPORT は null のまま（ボタン表示へ）
-    } catch (e) { /* 通信失敗 → ルールベース */ }
-    return;
-  }
-  // 静的配信（GitHub Pages 等）: 月別ファイル → latest
-  try {
-    const url = month ? `${DATA_BASE}/analysis/${month}.json` : `${DATA_BASE}/analysis/latest.json`;
-    const res = await fetch(url);
-    if (res.ok) {
-      const ct = res.headers.get("content-type") || "";
-      // 静的サーバの404はHTMLを返すことがあるのでJSONか確認
-      if (ct.includes("json") || ct === "") AI_REPORT = await res.json();
-    }
-  } catch (e) { /* レポートなし → ルールベース */ }
+function fmtJst(iso) {
+  try { return new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " JST"; }
+  catch (e) { return iso; }
 }
-
-// 生成ボタンのハンドラ。POST /api/analysis/generate を叩く。
-async function generateAIReport() {
-  const btn = document.getElementById("ai-generate-btn");
-  const note = document.getElementById("ai-generate-note");
-  if (btn) { btn.disabled = true; btn.textContent = "生成中…（10〜30秒）"; }
-  if (note) note.textContent = `Claudeが最安モデルで ${currentMonth} の分析を生成しています…`;
-  const month = currentMonth;
-  const onLatest = month === MONTHS[MONTHS.length - 1];
+async function loadAnalysis(month) {
+  if (ANALYSIS_CACHE[month]) return ANALYSIS_CACHE[month];
   try {
-    const res = await fetch(`/api/analysis/generate?month=${month}`, { method: "POST" });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.status === "generated") {
-      await loadAIReport(onLatest ? null : month);
-      renderAnalysis();
-      return;
-    }
-    if (res.status === 409) {
-      if (note) note.textContent = "この月のレポートは既に保管されています。再読み込みします…";
-      await loadAIReport(onLatest ? null : month); renderAnalysis(); return;
-    }
-    if (res.status === 422) {
-      if (note) note.textContent = "生成できるのは直近12ヶ月のみです。";
-    } else if (res.status === 400 && data.status === "no_api_key") {
-      if (note) note.textContent = "ANTHROPIC_API_KEY が未設定です。.env に設定してください。";
-    } else if (res.status === 501 || res.status === 405) {
-      // 簡易サーバ（python -m http.server）で開いている＝POST非対応
-      if (note) note.innerHTML = "このページは簡易サーバで開かれているため生成できません。" +
-        "<code>python3 scripts/server.py 8000</code> で起動し直し、" +
-        "<code>http://localhost:8000/web/</code> を開いてください。";
-    } else {
-      if (note) note.textContent = "生成に失敗しました: " + (data.message || data.reason || res.status);
-    }
+    const res = await fetch(`/api/analysis?month=${encodeURIComponent(month)}`);
+    const ct = res.headers.get("content-type") || "";
+    if (!res.ok || !ct.includes("json")) throw Error(String(res.status));
+    ANALYSIS_CACHE[month] = await res.json();
   } catch (e) {
-    if (note) note.textContent = "サーバーに接続できません。server.py で起動してください。";
+    return { status: "error" };
   }
-  if (btn) { btn.disabled = false; btn.textContent = "AIレポートを生成"; }
+  return ANALYSIS_CACHE[month];
 }
-
-// AI生成レポート（4観点）を描画。表示中の月のレポートがあるときに使う。
-function renderAIReport(host) {
-  const r = AI_REPORT.report || {};
-  const meta = AI_REPORT.based_on_month
-    ? `${AI_REPORT.based_on_month} 時点 / AI分析（${AI_REPORT.model || "Claude"}）`
-    : `AI分析（${AI_REPORT.model || "Claude"}）`;
-  const sec = (h, body) => body
-    ? `<div class="analysis-section"><h3 class="analysis-h3">${h}</h3><p class="analysis-body">${escapeHtml(body)}</p></div>`
-    : "";
-  host.innerHTML = `
+function analysisHtml(data, month) {
+  if (!data || data.status === "error") {
+    return `<p class="analysis-note" role="status">AI分析を読み込めませんでした。時間をおいて再読み込みしてください。</p>`;
+  }
+  if (data.status !== "ok") {
+    const why = data.state === "not_configured" ? "AI分析は準備中です。公開され次第、ここに表示します。"
+      : `${escapeHtml(month)}時点のAI分析はまだ作成されていません。新しいデータを取り込んだあと、自動で作成します。`;
+    return `<p class="analysis-note" role="status">${why}</p>`;
+  }
+  const a = data.analysis, r = a.report || {};
+  const notes = [];
+  if (data.fallback) notes.push(`${escapeHtml(month)}時点の分析は${data.failed ? "作成に失敗したため" : "まだないため"}、${escapeHtml(a.month)}時点の分析を表示しています。`);
+  else if (data.failed) notes.push("最新データでの再作成に失敗したため、前回作成した分析を表示しています。");
+  else if (data.stale) notes.push("この分析の作成後に新しい公表値が入りました。次回の自動更新で反映します。");
+  const sec = (title, list) => Array.isArray(list) && list.length ? `<div class="analysis-section"><h2 class="analysis-h3">${title}</h2><ul class="ai-points">${list.map((x) =>
+    `<li><p class="analysis-body">${escapeHtml(x.text)}</p><p class="ai-cite">根拠：${(x.indicators || []).map((n) => `<span class="ai-chip">No.${n} ${escapeHtml(indicatorName(n))}</span>`).join("")}</p></li>`).join("")}</ul></div>` : "";
+  return `
+    ${notes.length ? `<p class="analysis-note" role="status">${notes.join(" ")}</p>` : ""}
     <div class="analysis-head">
-      <span class="analysis-avatar">🧭</span>
+      <span class="analysis-avatar" aria-hidden="true">🧭</span>
       <div>
-        <div class="analysis-title">12指標の関係性レポート${r.headline ? `：${escapeHtml(r.headline)}` : ""}</div>
-        <div class="analysis-meta">${meta}</div>
+        <div class="analysis-title"><span class="ai-badge">AI生成</span>${escapeHtml(r.headline || "12指標の関係性")}</div>
+        <div class="analysis-meta">${escapeHtml(a.month)} 時点のデータ / ${escapeHtml(fmtJst(a.generated_at))} 作成 / モデル ${escapeHtml(a.model)}</div>
       </div>
     </div>
-    ${sec("景気サイクルの位置", r.cycle)}
-    ${sec("インフレと金融政策の向き", r.inflation)}
-    ${sec("米株（S&P500）との関係", r.equity)}
-    ${sec("日本の投資家への含意", r.jpy)}
-    <p class="analysis-disclaimer">※AIが${AI_REPORT.month || "当該月"}時点の指標データから生成した分析であり、特定の投資を推奨するものではありません。</p>`;
+    ${sec("現状（直近の流れ）", r.current)}${sec("これまでの変遷", r.history)}${sec("この先の示唆", r.outlook)}
+    ${r.caveat ? `<p class="ai-caveat">${escapeHtml(r.caveat)}</p>` : ""}
+    <p class="analysis-disclaimer">※AI生成・投資助言ではありません。AIが${escapeHtml(a.month)}時点の指標データから自動で作成した文章で、誤りを含むことがあります。数値は各指標カードと出典でご確認ください。</p>`;
 }
-
-// currentMonth が直近12ヶ月以内か（生成を許可する範囲）
-function isWithinLast12() {
-  const idx = MONTHS.indexOf(currentMonth);
-  return idx >= 0 && idx >= MONTHS.length - 12;
-}
-
-function renderAnalysis() {
+async function renderAnalysis() {
   const host = document.getElementById("analysis");
-  if (!host) return;
-
-  // 表示中の月のAIレポートがあればAI版を優先（最新月に限らず、過去月でも）
-  const reportMatchesMonth = AI_REPORT && AI_REPORT.report &&
-    (!AI_REPORT.month || AI_REPORT.month === currentMonth);
-  if (reportMatchesMonth) {
-    renderAIReport(host);
-    return;
-  }
-
-  const a = buildAnalysis();
-  // 直近12ヶ月以内・未生成・生成許可（公開モードでない）なら生成ボタンを出す
-  const showGenerate = isWithinLast12() && API_AVAILABLE && CAN_GENERATE && !reportMatchesMonth;
-  const genBlock = showGenerate ? `
-    <div class="ai-generate">
-      <button id="ai-generate-btn" class="ai-generate-btn" type="button">AIレポートを生成</button>
-      <span class="ai-generate-hint">Claude（最安モデル）が4観点で${currentMonth}時点の関係性を分析します。生成は1回・保管後は再生成しません。</span>
-      <p id="ai-generate-note" class="ai-generate-note"></p>
-    </div>` : "";
-  host.innerHTML = `
-    <div class="analysis-head">
-      <span class="analysis-avatar">📊</span>
-      <div>
-        <div class="analysis-title">12指標の関係性レポート</div>
-        <div class="analysis-meta">${currentMonth} 時点 / 分野別に見た景況の整理</div>
-      </div>
-    </div>
-    <div class="analysis-section">
-      <h3 class="analysis-h3">現状（直近の流れ）</h3>
-      <p class="analysis-body">${analysisCurrent(a)}</p>
-    </div>
-    <div class="analysis-section">
-      <h3 class="analysis-h3">これまでの変遷</h3>
-      <p class="analysis-body">${analysisHistory(a)}</p>
-    </div>
-    <div class="analysis-section">
-      <h3 class="analysis-h3">この先の示唆</h3>
-      <p class="analysis-body">${analysisOutlook(a)}</p>
-    </div>
-    ${genBlock}
-    <p class="analysis-disclaimer">※各指標の方向と分野別の集計から機械的に生成した整理であり、特定の投資を推奨するものではありません。</p>`;
-
-  // 生成ボタンのイベントを結線
-  const genBtn = document.getElementById("ai-generate-btn");
-  if (genBtn) genBtn.addEventListener("click", generateAIReport);
+  if (!host || !currentMonth) return;
+  const month = currentMonth;
+  if (!ANALYSIS_CACHE[month]) host.innerHTML = `<p class="analysis-note" role="status">AI分析を読み込んでいます…</p>`;
+  const data = await loadAnalysis(month);
+  if (month !== currentMonth) return; // 読み込み中に月が切り替わった
+  host.innerHTML = analysisHtml(data, month);
 }
 
 /* ---- 月ナビゲーション ---------------------------------------------------- */
@@ -1028,16 +753,6 @@ function renderPeriodControls() {
 function setMonth(m) {
   currentMonth = m;
   rerender();
-  // 選択月のAIレポートを非同期で読み込み、来たら分析セクションだけ再描画
-  refreshAIReportForMonth(m);
-}
-
-// 選択月のAIレポートを読み込んで分析セクションを更新する。
-async function refreshAIReportForMonth(month) {
-  const onLatest = month === MONTHS[MONTHS.length - 1];
-  await loadAIReport(onLatest ? null : month);
-  // 読み込み中に別の月へ切り替わっていなければ再描画
-  if (month === currentMonth) renderAnalysis();
 }
 
 function rerender() {
@@ -1045,7 +760,6 @@ function rerender() {
   renderMonthNav();
   renderSignal(computeSignal(inds));
   renderAnalysis();
-  if (window.EconAI) window.EconAI.render();
   renderPeriodControls();
   renderPeriodChart();
 
@@ -1130,8 +844,6 @@ async function init() {
     const ev = await (await fetch(`/config/events.json`)).json();
     EVENTS = ev.events || [];
   } catch (e) { console.warn("イベント定義なし", e); }
-  await detectServerConfig();
-  await loadAIReport();   // 既定は最新月
 
   MONTHS = [...monthSet].sort();
   if (!MONTHS.length) {
@@ -1157,19 +869,7 @@ async function init() {
   if (evToggle) { evToggle.checked = showEvents; evToggle.onchange = () => { showEvents = evToggle.checked; renderPeriodChart(); }; }
 
   rerender();
-  if (window.EconAI) window.EconAI.init();
 }
-
-// 「AIで分析」（web/ai-analysis.js）が参照する読み取り専用の窓口
-window.__econ = {
-  currentMonth: () => currentMonth,
-  months: () => MONTHS,
-  manifest: () => MANIFEST || { indicators: [] },
-  series: () => SERIES,
-  indicatorsAt: (m) => indicatorsAt(m),
-  scoreAt: (m) => computeSignalAt(m).score,
-  ruleAnalysis: () => buildAnalysis(),
-};
 
 init();
 

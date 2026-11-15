@@ -53,7 +53,7 @@
         <div class="period-chart-wrap"><canvas id="period-chart" role="img" aria-label="方向スコアの推移"></canvas></div>
       </section>
 
-      <details class="analysis-disclosure"><summary>指標の関係性を読む（ルールベースの整理／AIで分析）</summary><section id="analysis" class="analysis" aria-label="12指標の関係性に関する分析"></section><section id="ai-analysis" class="ai-analysis" aria-label="AIによる12指標の関係性の分析"></section></details>
+      <details class="analysis-disclosure" open><summary>指標の関係性を読む（AI分析）</summary><section id="analysis" class="analysis" aria-label="AIによる12指標の関係性の分析" aria-live="polite"></section></details>
     </div>
   </header>
 
@@ -109,6 +109,5 @@
   </div>
 
   <script src="/app.js"></script>
-  <script src="/ai-analysis.js"></script>
 </body>
 </html>
