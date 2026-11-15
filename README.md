@@ -14,17 +14,17 @@ Cloudflare Workers + Static Assets + Workers KV。`config/indicators.json` が�
 毎日01:15 UTC（10:15 JST）にCron Triggerで更新を試行します。12指標がすべて成功した場合のみ、KVの一つのキーへ完全なデータ一式を書き込みます。失敗した場合は前回の一式を維持します。
 KVを利用できない場合は、公開時に検証した `dist/data/` のスナップショットに戻ります。取得日時が48時間を超えた場合は画面に遅延を表示します。
 
-FRED_API_KEYはCloudflare Secretで保管し、HTML・JSON・Gitには含めません。公開WorkerはGET/HEADのみ受け付け、有料AIレポートの生成を提供しません。
+FRED_API_KEYはCloudflare Secretで保管し、HTML・JSON・Gitには含めません。公開WorkerはGET/HEADのみ受け付け、HTTP経由でAI生成を起動する口はありません（AI分析はCronのみ）。
 
-### AIで分析（利用者のAPIキー）
+### AI分析（サーバーで作成して公開）
 
-「指標の関係性を読む」の中に、ルールベースの整理に加えて「AIで分析」を置いています（`web/ai-analysis.js`）。利用者が自分のAnthropicまたはOpenAIのAPIキーを入れると、表示中の月の12指標の値・前回差・直近の推移・方向スコアをプロンプトに入れ、現状／これまでの変遷／この先の示唆を、根拠にした指標番号つきで生成します。
+「指標の関係性を読む（AI分析）」は、Workerが作成して月ごとにKVへ保存した分析を表示します（`cloudflare/analysis.mjs`）。ルールベースの整理と利用者ごとのLLM設定は2026-11-16に廃止しました。
 
-- 通信はブラウザ→各社APIの直接のみ（CSP `connect-src` は `api.anthropic.com` と `api.openai.com` を許可）。Workerは中継しません。
-- キーは既定でsessionStorage、任意でlocalStorage。ログ・画面・エラー文に出しません。
-- モデル一覧は `GET /v1/models` からライブ取得し新しい順に表示（24時間キャッシュ、「最新のモデルを取得」で再取得）。失敗時のみ予備リストとメッセージを表示します。
-- 結果は画面上だけで保存しません。AI生成・投資助言ではない旨を明示し、ルールベースの整理は常に残します。
-- ローカル版の `scripts/generate_analysis.py`（運営キーで月次レポートを作る個人用機能）の考え方を、公開版向けにBYOK方式で移植したものです。`workers.dev` とpreview URLは無効です。
+- 毎日10:15 JSTのFRED取得の直後と、毎時40分に、直近12か月のうち「未作成」または「新しい公表が入った（観測日の組み合わせが変わった）」月を新しい順に最大2件作成します。
+- モデルはAnthropic Models API（`GET /v1/models`）から作成時に取得し、`ANALYSIS_MODEL_FAMILY`（既定 `sonnet`）の最新を使います。取得失敗時のみ予備の `FALLBACK_MODEL`。
+- 入力はその月時点の12指標の値・観測日・前回差・直近7観測・方向スコア。出力（現状／これまでの変遷／この先の示唆、各項目に根拠の指標番号）はスキーマ・根拠（データのある指標のみ）・長さを検証し、不合格なら保存しません（1回再試行）。
+- 保存：`analysis:YYYY-MM`（現行）、再作成時は旧版を `analysis-archive:YYYY-MM:<作成日時>` へ退避、実行結果は `analysis-status`。表示は `GET /api/analysis?month=YYYY-MM`。その月が無い・失敗した場合は直前の月の分析を注記つきで表示します。
+- Secret `ANTHROPIC_API_KEY` が未設定の間は何も呼ばず、画面に「準備中」と表示します。設定：`npx wrangler secret put ANTHROPIC_API_KEY`。
 
 ## 収録指標と定義
 
@@ -73,6 +73,6 @@ Secretを設定したあと、PRをsquash mergeし、同じソースから配信
 
 `scripts/server.py` とPythonの取得・AI分析スクリプトはローカル版として残しています。公開Workerから呼び出しません。
 S&P 500は出典が事前の書面許諾を求めるため、公開配布物には含めず公式ページへ案内します。個人用の既存データは公開用ビルドの対象外です。
-既存の個人用AIレポートも公開配布物に含めません。公開版にはルールベースの整理を掲載します。
+既存の個人用AIレポート（data/analysis/）は公開配布物に含めません。公開版のAI分析はWorkerがKVに保存したものです。
 
 出典: https://fred.stlouisfed.org/series/SP500 、 https://fred.stlouisfed.org/series/UMCSENT 、 https://fred.stlouisfed.org/series/USACSCICP02STSAM
