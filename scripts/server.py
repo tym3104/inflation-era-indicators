@@ -34,6 +34,7 @@ import generate_analysis  # noqa: E402
 # 公開モード: True のとき生成API(POST)を無効化する。
 # 外部公開（トンネル/LAN）時は必ず True にする。
 PUBLIC_MODE = False
+PORT = 8000
 
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
@@ -89,6 +90,14 @@ def resolve_static(url_path):
     return target if target.is_file() else None
 
 
+def allowed_hosts():
+    return {f"localhost:{PORT}", f"127.0.0.1:{PORT}", f"[::1]:{PORT}"}
+
+
+def allowed_origins():
+    return {f"http://{h}" for h in allowed_hosts()}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self._target = None
@@ -102,6 +111,12 @@ class Handler(SimpleHTTPRequestHandler):
         self._json(404, {"status": "not_found"})
         return None
 
+    def _host_ok(self):
+        # 通常モード（127.0.0.1）では Host を localhost に限定（DNSリバインディング対策）
+        if PUBLIC_MODE:
+            return True
+        return (self.headers.get("Host") or "").lower() in allowed_hosts()
+
     def _json(self, code, payload):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
@@ -112,6 +127,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ---- GET --------------------------------------------------------------
     def do_GET(self):
+        if not self._host_ok():
+            self._json(403, {"status": "forbidden"})
+            return
         parsed = urlparse(self.path)
         path = parsed.path
 
@@ -154,6 +172,9 @@ class Handler(SimpleHTTPRequestHandler):
         return self._serve_static(path, super().do_GET)
 
     def do_HEAD(self):
+        if not self._host_ok():
+            self._json(403, {"status": "forbidden"})
+            return
         return self._serve_static(urlparse(self.path).path, super().do_HEAD)
 
     def _serve_static(self, path, serve):
@@ -178,6 +199,15 @@ class Handler(SimpleHTTPRequestHandler):
         if PUBLIC_MODE:
             self._json(403, {"status": "disabled",
                              "message": "公開モードではAIレポートの生成は無効です（閲覧専用）。"})
+            return
+
+        # 他サイトからの送信（CSRF）とDNSリバインディングを拒否：
+        # Host と Origin がこのサーバー（localhost/127.0.0.1/[::1]:ポート）のときだけ受け付ける。
+        # ブラウザはPOSTに必ず Origin を付ける。curl 等で叩く場合は
+        #   -H "Origin: http://localhost:<ポート>" を付ける。
+        if not self._host_ok() or self.headers.get("Origin") not in allowed_origins():
+            self._json(403, {"status": "forbidden",
+                             "message": "このサーバーの画面以外からの生成リクエストは受け付けません。"})
             return
 
         # APIキー未設定なら明示的に返す（画面で案内できるように）
@@ -217,11 +247,11 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main():
-    global PUBLIC_MODE
+    global PUBLIC_MODE, PORT
     args = [a for a in sys.argv[1:]]
     PUBLIC_MODE = "--public" in args
     ports = [a for a in args if a.isdigit()]
-    port = int(ports[0]) if ports else 8000
+    port = PORT = int(ports[0]) if ports else 8000
 
     # 公開モードは全インターフェイスで待ち受け（トンネル/LAN公開に対応）
     host = "0.0.0.0" if PUBLIC_MODE else "127.0.0.1"

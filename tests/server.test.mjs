@@ -62,3 +62,17 @@ for(const mode of [[],['--public']]){
  });
 }
 
+test('server.py local: generation POST needs this server as Origin and Host (CSRF / DNS rebinding)',{skip:!python&&'python not installed'},async()=>{
+ const dir=await fixture();const {port,proc}=await start(dir);
+ try{
+  const post=h=>req(port,'/api/analysis/generate',{method:'POST',headers:h});
+  assert.equal((await post({Origin:'https://evil.example'})).status,403);
+  assert.equal((await post({})).status,403,'no Origin');
+  assert.equal((await post({Origin:'null'})).status,403);
+  assert.equal((await post({Host:'evil.example',Origin:'http://evil.example'})).status,403);
+  assert.equal((await post({Host:`evil.example:${port}`,Origin:`http://localhost:${port}`})).status,403,'rebinding Host');
+  assert.equal((await req(port,'/web/',{headers:{Host:`evil.example:${port}`}})).status,403,'rebinding GET');
+  // 正しいOriginはCSRFの関門を通過し、キー未設定の案内（400）に進む
+  const ok=await post({Origin:`http://localhost:${port}`});assert.equal(ok.status,400);assert.match(ok.body,/no_api_key/);
+ }finally{proc.kill();await rm(dir,{recursive:true,force:true});}
+});
