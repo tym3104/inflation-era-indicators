@@ -14,7 +14,17 @@ Cloudflare Workers + Static Assets + Workers KV。`config/indicators.json` が�
 毎日01:15 UTC（10:15 JST）にCron Triggerで更新を試行します。12指標がすべて成功した場合のみ、KVの一つのキーへ完全なデータ一式を書き込みます。失敗した場合は前回の一式を維持します。
 KVを利用できない場合は、公開時に検証した `dist/data/` のスナップショットに戻ります。取得日時が48時間を超えた場合は画面に遅延を表示します。
 
-FRED_API_KEYはCloudflare Secretで保管し、HTML・JSON・Gitには含めません。公開WorkerはGET/HEADのみ受け付け、有料AIレポートの生成を提供しません。`workers.dev` とpreview URLは無効です。
+FRED_API_KEYはCloudflare Secretで保管し、HTML・JSON・Gitには含めません。公開WorkerはGET/HEADのみ受け付け、有料AIレポートの生成を提供しません。
+
+### AIで分析（利用者のAPIキー）
+
+「指標の関係性を読む」の中に、ルールベースの整理に加えて「AIで分析」を置いています（`web/ai-analysis.js`）。利用者が自分のAnthropicまたはOpenAIのAPIキーを入れると、表示中の月の12指標の値・前回差・直近の推移・方向スコアをプロンプトに入れ、現状／これまでの変遷／この先の示唆を、根拠にした指標番号つきで生成します。
+
+- 通信はブラウザ→各社APIの直接のみ（CSP `connect-src` は `api.anthropic.com` と `api.openai.com` を許可）。Workerは中継しません。
+- キーは既定でsessionStorage、任意でlocalStorage。ログ・画面・エラー文に出しません。
+- モデル一覧は `GET /v1/models` からライブ取得し新しい順に表示（24時間キャッシュ、「最新のモデルを取得」で再取得）。失敗時のみ予備リストとメッセージを表示します。
+- 結果は画面上だけで保存しません。AI生成・投資助言ではない旨を明示し、ルールベースの整理は常に残します。
+- ローカル版の `scripts/generate_analysis.py`（運営キーで月次レポートを作る個人用機能）の考え方を、公開版向けにBYOK方式で移植したものです。`workers.dev` とpreview URLは無効です。
 
 ## 収録指標と定義
 

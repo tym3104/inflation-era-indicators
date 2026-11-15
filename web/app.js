@@ -1045,6 +1045,7 @@ function rerender() {
   renderMonthNav();
   renderSignal(computeSignal(inds));
   renderAnalysis();
+  if (window.EconAI) window.EconAI.render();
   renderPeriodControls();
   renderPeriodChart();
 
@@ -1156,7 +1157,19 @@ async function init() {
   if (evToggle) { evToggle.checked = showEvents; evToggle.onchange = () => { showEvents = evToggle.checked; renderPeriodChart(); }; }
 
   rerender();
+  if (window.EconAI) window.EconAI.init();
 }
+
+// 「AIで分析」（web/ai-analysis.js）が参照する読み取り専用の窓口
+window.__econ = {
+  currentMonth: () => currentMonth,
+  months: () => MONTHS,
+  manifest: () => MANIFEST || { indicators: [] },
+  series: () => SERIES,
+  indicatorsAt: (m) => indicatorsAt(m),
+  scoreAt: (m) => computeSignalAt(m).score,
+  ruleAnalysis: () => buildAnalysis(),
+};
 
 init();
 
