@@ -6,7 +6,10 @@ import {config} from './data.mjs';
 
 export const FALLBACK_MODEL='claude-sonnet-4-6';
 export const MAX_MONTHS=12;
+// 生成に失敗した月は、同じデータ（fingerprint）のままなら24時間は再試行しない（失敗が続くときのAPI呼び出しを抑える）。
+export const FAILURE_COOLDOWN_MS=24*60*60*1000;
 const KEY=m=>`analysis:${m}`;
+const FAIL_KEY=m=>`analysis-failure:${m}`;
 const mk=d=>d.slice(0,7);
 const r3=v=>v==null||!Number.isFinite(v)?null:Math.round(v*1000)/1000;
 
@@ -130,21 +133,29 @@ export async function runAnalysis(env,{fetcher=fetch,now=new Date(),maxCalls=2,b
   const months=monthsOf(bundle.files).slice(-MAX_MONTHS).reverse();
   const todo=[];
   for(const m of months){
-    const stored=await env.DATA.get(KEY(m),'json');
-    if(!stored||stored.fingerprint!==fingerprint(buildInput(bundle.files,m)))todo.push({m,stored});
+    const stored=await env.DATA.get(KEY(m),'json'),fp=fingerprint(buildInput(bundle.files,m));
+    if(stored&&stored.fingerprint===fp)continue;
+    const failed=await env.DATA.get(FAIL_KEY(m),'json');
+    if(failed&&failed.fingerprint===fp&&now-Date.parse(failed.at)<FAILURE_COOLDOWN_MS){
+      status.skipped.push({month:m,reason:'recent_failure',failedAt:failed.at});continue;
+    }
+    todo.push({m,stored,fp});
   }
   let chosen=null;
-  for(const {m,stored} of todo.slice(0,maxCalls)){
+  for(const {m,stored,fp} of todo.slice(0,maxCalls)){
     try{
       chosen=chosen||await chooseModel(env,fetcher);
       const rec=await generateFor(env,bundle.files,m,fetcher,now,chosen);
       if(stored)await env.DATA.put(`analysis-archive:${m}:${stored.generated_at}`,JSON.stringify(stored));
       await env.DATA.put(KEY(m),JSON.stringify(rec));
       status.generated.push({month:m,model:rec.model});
-    }catch(e){status.errors.push({month:m,error:safe(e)});}
+    }catch(e){
+      status.errors.push({month:m,error:safe(e)});
+      await env.DATA.put(FAIL_KEY(m),JSON.stringify({fingerprint:fp,at:now.toISOString()}),{expirationTtl:2*24*60*60});
+    }
   }
   status.pending=Math.max(0,todo.length-maxCalls);
-  status.state=status.errors.length?'partial_failure':'ok';
+  status.state=status.errors.length||status.skipped.length?'partial_failure':'ok';
   await env.DATA.put('analysis-status',JSON.stringify(status));
   return status;
 }
@@ -159,7 +170,7 @@ export async function getAnalysis(env,month,bundle){
       rec=await env.DATA.get(KEY(m),'json');if(rec){fallbackFrom=m;break;}
     }
   }
-  const failed=st&&st.errors?.some(e=>e.month===month);
+  const failed=st&&(st.errors?.some(e=>e.month===month)||st.skipped?.some(e=>e.month===month&&e.reason==='recent_failure'));
   if(!rec)return {status:'none',month,state:st?.state||'not_configured',failed:!!failed};
   const stale=!fallbackFrom&&bundle?rec.fingerprint!==fingerprint(buildInput(bundle.files,month)):false;
   return {status:'ok',month,shown_month:rec.month,fallback:!!fallbackFrom,stale,failed:!!failed,analysis:rec};

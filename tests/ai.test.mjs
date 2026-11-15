@@ -105,3 +105,28 @@ test('public page has no rule-based report and no per-user LLM settings',async()
  for(const s of ['buildAnalysis','analysisCurrent','ルールベースの整理）','sessionStorage','x-api-key','ai-analysis.js'])assert(!app.includes(s)&&!html.includes(s),s);
  assert.match(app,/AI生成・投資助言ではありません/);
 });
+
+test('a month whose generation failed is not retried for 24h unless new observations land (caps paid calls)',async()=>{
+ const env={DATA:kv(),ANTHROPIC_API_KEY:'k'};
+ // 最新月以外は保存済みにしておき、最新月だけが失敗し続ける状況を作る
+ for(const m of months.slice(-12,-1))env.DATA.m.set(`analysis:${m}`,JSON.stringify({month:m,generated_at:'x',fingerprint:fingerprint(buildInput(files,m)),report:{}}));
+ const t0=new Date('2026-11-16T00:40:00Z');
+ const c1=[];const st1=await runAnalysis(env,{fetcher:fakeAnthropic({text:'すみません',calls:c1}),bundle,now:t0});
+ assert.equal(st1.errors.length,1);assert.equal(c1.filter(c=>c.url.endsWith('/v1/messages')).length,2);
+ // 毎時の実行が続いても、24時間はAPIを呼ばない
+ for(let h=1;h<24;h++){
+  const c=[];const st=await runAnalysis(env,{fetcher:fakeAnthropic({text:'すみません',calls:c}),bundle,now:new Date(t0.getTime()+h*3600e3)});
+  assert.equal(c.length,0,`hour ${h}`);assert.equal(st.skipped[0].reason,'recent_failure');
+ }
+ const r=await getAnalysis(env,latest,bundle);assert.equal(r.failed,true);
+ // 24時間後は再試行し、成功すれば保存される
+ const c24=[];const st24=await runAnalysis(env,{fetcher:fakeAnthropic({calls:c24}),bundle,now:new Date(t0.getTime()+24*3600e3)});
+ assert.deepEqual(st24.generated.map(g=>g.month),[latest]);assert(c24.length>0);
+ // 失敗中でも新しい公表が入れば、待たずに作り直す
+ const env2={DATA:kv(),ANTHROPIC_API_KEY:'k'};
+ for(const m of months.slice(-12,-1))env2.DATA.m.set(`analysis:${m}`,JSON.stringify({month:m,generated_at:'x',fingerprint:fingerprint(buildInput(files,m)),report:{}}));
+ await runAnalysis(env2,{fetcher:fakeAnthropic({text:'すみません'}),bundle,now:t0});
+ const f2={...files,payems:{...files.payems,series:[...files.payems.series,{date:`${latest}-01`,value:50}]}};
+ const c2=[];const st2=await runAnalysis(env2,{fetcher:fakeAnthropic({calls:c2}),bundle:{...bundle,files:f2},now:new Date(t0.getTime()+3600e3)});
+ assert.deepEqual(st2.generated.map(g=>g.month),[latest]);
+});
