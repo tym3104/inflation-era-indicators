@@ -2,7 +2,8 @@
 """
 ダッシュボード用のローカルAPIサーバー。
 
-- 静的ファイル配信（プロジェクト全体）: / で web/ にリダイレクト、/web/ でダッシュボード。
+- 静的ファイル配信（web/・data/・config/ と Chart.js 本体のみ。.env・.git・scripts 等は配信しない）:
+  / で web/ にリダイレクト、/web/ でダッシュボード。
 - GET  /api/analysis?month=YYYY-MM  : その月のAIレポートを返す（無ければ404）。
                                        month省略時は最新（latest.json）。
 - POST /api/analysis/generate       : その月のレポートを生成（最安モデル）。
@@ -17,10 +18,11 @@ APIキーはこのサーバー側だけで使い、ブラウザには渡しま�
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 ROOT = Path(__file__).resolve().parent.parent
 ANALYSIS_DIR = ROOT / "data" / "analysis"
@@ -29,22 +31,91 @@ ANALYSIS_DIR = ROOT / "data" / "analysis"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import generate_analysis  # noqa: E402
 
-# 公開モード: True のとき生成API(POST)を無効化し、機密ファイルへのアクセスも拒否する。
+# 公開モード: True のとき生成API(POST)を無効化する。
 # 外部公開（トンネル/LAN）時は必ず True にする。
 PUBLIC_MODE = False
+PORT = 8000
 
-# 公開時に配信を禁止するパス（APIキー等の漏洩防止）
-BLOCKED_PREFIXES = ("/.env", "/scripts", "/.git", "/.claude")
+MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
+
+# 配信してよいディレクトリだけを許可する（プロジェクト全体は配信しない）。
+# .env / .git / scripts / .claude などはどのモードでも配信されない。
+# URLの先頭 → 実ディレクトリ。どれにも当たらないパスは web/ 配下として扱う
+# （web/index.html が /app.js, /styles.css, /foundation/... を絶対パスで読むため）。
+STATIC_MOUNTS = (
+    ("/web/", ROOT / "web"),
+    ("/data/", ROOT / "data"),
+    ("/config/", ROOT / "config"),
+)
+# Chart.js は npm の配布物を1ファイルだけ配信する（公開版の dist/vendor と同じURL）
+VENDOR_FILES = {
+    "/vendor/chart.umd.js": ROOT / "node_modules" / "chart.js" / "dist" / "chart.umd.js",
+}
+
+
+def _inside(path, base):
+    try:
+        path.relative_to(base)
+        return True
+    except ValueError:
+        return False
+
+
+def resolve_static(url_path):
+    """URLパス（デコード前）を、配信してよい実ファイルのパスに変換する。
+    許可外・ドットファイル・ディレクトリ外への脱出は None。"""
+    path = unquote(url_path, errors="strict") if url_path else ""
+    if not path.startswith("/") or "\\" in path or "\x00" in path:
+        return None
+    segments = [s for s in path.split("/") if s]
+    # 「.」「..」やドットファイル（.env, .git, .DS_Store など）は一切配信しない
+    if any(s.startswith(".") for s in segments):
+        return None
+    if path in VENDOR_FILES:
+        target = VENDOR_FILES[path]
+        return target if target.is_file() else None
+    for prefix, base in STATIC_MOUNTS:
+        if path == prefix.rstrip("/") or path.startswith(prefix):
+            rel = path[len(prefix):]
+            break
+    else:
+        base, rel = ROOT / "web", path.lstrip("/")
+    base = base.resolve()
+    target = (base / rel).resolve()  # シンボリックリンクも解決してから判定
+    if not _inside(target, base):
+        return None
+    if target.is_dir():
+        index = target / "index.html"
+        return index if index.is_file() else None
+    return target if target.is_file() else None
+
+
+def allowed_hosts():
+    return {f"localhost:{PORT}", f"127.0.0.1:{PORT}", f"[::1]:{PORT}"}
+
+
+def allowed_origins():
+    return {f"http://{h}" for h in allowed_hosts()}
 
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(ROOT), **kwargs)
+        self._target = None
+        super().__init__(*args, directory=str(ROOT / "web"), **kwargs)
 
-    def _blocked(self, path):
-        # 公開モードでは機密ファイル/ディレクトリへのアクセスを拒否
-        low = path.rstrip("/").lower()
-        return any(low == p or low.startswith(p + "/") or low.startswith(p) for p in BLOCKED_PREFIXES)
+    def translate_path(self, path):
+        # do_GET で検証済みのパスだけを開く（それ以外は存在しないパス）
+        return str(self._target) if self._target else str(ROOT / "web" / "__not_found__")
+
+    def list_directory(self, path):
+        self._json(404, {"status": "not_found"})
+        return None
+
+    def _host_ok(self):
+        # 通常モード（127.0.0.1）では Host を localhost に限定（DNSリバインディング対策）
+        if PUBLIC_MODE:
+            return True
+        return (self.headers.get("Host") or "").lower() in allowed_hosts()
 
     def _json(self, code, payload):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -56,6 +127,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ---- GET --------------------------------------------------------------
     def do_GET(self):
+        if not self._host_ok():
+            self._json(403, {"status": "forbidden"})
+            return
         parsed = urlparse(self.path)
         path = parsed.path
 
@@ -68,9 +142,13 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/analysis":
             qs = parse_qs(parsed.query)
             month = (qs.get("month") or [None])[0]
+            if month is not None and not MONTH_RE.fullmatch(month):
+                self._json(400, {"status": "bad_request", "message": "month は YYYY-MM 形式で指定してください。"})
+                return
             fname = f"{month}.json" if month else "latest.json"
-            fpath = ANALYSIS_DIR / fname
-            if fpath.exists():
+            base = ANALYSIS_DIR.resolve()
+            fpath = (base / fname).resolve()
+            if _inside(fpath, base) and fpath.is_file():
                 self._json(200, json.loads(fpath.read_text(encoding="utf-8")))
             else:
                 self._json(404, {"status": "not_found", "month": month})
@@ -86,13 +164,29 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(200, {"public_mode": PUBLIC_MODE, "can_generate": not PUBLIC_MODE})
             return
 
-        # 公開モードでは機密ファイルへのアクセスを拒否
-        if PUBLIC_MODE and self._blocked(path):
-            self._json(403, {"status": "forbidden"})
+        if path.startswith("/api/"):
+            self._json(404, {"status": "not_found"})
             return
 
-        # それ以外は静的ファイル
-        return super().do_GET()
+        # それ以外は許可したディレクトリの静的ファイルだけ（どのモードでも同じ）
+        return self._serve_static(path, super().do_GET)
+
+    def do_HEAD(self):
+        if not self._host_ok():
+            self._json(403, {"status": "forbidden"})
+            return
+        return self._serve_static(urlparse(self.path).path, super().do_HEAD)
+
+    def _serve_static(self, path, serve):
+        try:
+            target = resolve_static(path)
+        except UnicodeDecodeError:
+            target = None
+        if target is None:
+            self._json(404, {"status": "not_found"})
+            return
+        self._target = target
+        return serve()
 
     # ---- POST -------------------------------------------------------------
     def do_POST(self):
@@ -105,6 +199,15 @@ class Handler(SimpleHTTPRequestHandler):
         if PUBLIC_MODE:
             self._json(403, {"status": "disabled",
                              "message": "公開モードではAIレポートの生成は無効です（閲覧専用）。"})
+            return
+
+        # 他サイトからの送信（CSRF）とDNSリバインディングを拒否：
+        # Host と Origin がこのサーバー（localhost/127.0.0.1/[::1]:ポート）のときだけ受け付ける。
+        # ブラウザはPOSTに必ず Origin を付ける。curl 等で叩く場合は
+        #   -H "Origin: http://localhost:<ポート>" を付ける。
+        if not self._host_ok() or self.headers.get("Origin") not in allowed_origins():
+            self._json(403, {"status": "forbidden",
+                             "message": "このサーバーの画面以外からの生成リクエストは受け付けません。"})
             return
 
         # APIキー未設定なら明示的に返す（画面で案内できるように）
@@ -144,11 +247,11 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main():
-    global PUBLIC_MODE
+    global PUBLIC_MODE, PORT
     args = [a for a in sys.argv[1:]]
     PUBLIC_MODE = "--public" in args
     ports = [a for a in args if a.isdigit()]
-    port = int(ports[0]) if ports else 8000
+    port = PORT = int(ports[0]) if ports else 8000
 
     # 公開モードは全インターフェイスで待ち受け（トンネル/LAN公開に対応）
     host = "0.0.0.0" if PUBLIC_MODE else "127.0.0.1"
@@ -156,7 +259,7 @@ def main():
 
     if PUBLIC_MODE:
         print("=" * 60)
-        print("【公開モード】閲覧専用 — AIレポート生成APIは無効・機密ファイルは遮断")
+        print("【公開モード】閲覧専用 — AIレポート生成APIは無効・配信は web/ data/ config/ のみ")
         print("=" * 60)
         print(f"待ち受け: http://{host}:{port}/web/  （全インターフェイス）")
         print("外部公開には cloudflared 等のトンネルを併用してください。")
